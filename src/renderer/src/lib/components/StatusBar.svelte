@@ -24,8 +24,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 12px;
-    background: #141414;
-    border-top: 1px solid #262626;
+    background: #111;
+    border-top: 1px solid #222;
     font-size: 11px;
     color: #666;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;

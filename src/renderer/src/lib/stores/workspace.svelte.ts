@@ -30,6 +30,9 @@ class WorkspaceStore {
   }
 
   async select(ws: Workspace, silent = false) {
+    // Skip if already the active workspace — avoids re-triggering effects
+    if (this.active?.path === ws.path) return false
+
     this.active = ws
     await window.zeus.workspace.setLast(ws.path)
     this.activeDirInfo = await window.zeus.system.getDirInfo(ws.path)

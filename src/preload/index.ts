@@ -202,6 +202,8 @@ contextBridge.exposeInMainWorld('zeus', {
       ipcRenderer.invoke('claude-session:list-saved', workspacePath),
     save: (session: { sessionId: string; title: string; workspacePath: string }) =>
       ipcRenderer.invoke('claude-session:save', session),
+    readTranscript: (sessionId: string, workspacePath: string) =>
+      ipcRenderer.invoke('claude-session:read-transcript', sessionId, workspacePath),
     deleteSaved: (sessionId: string) =>
       ipcRenderer.invoke('claude-session:delete-saved', sessionId),
     onEvent: (callback: (payload: { id: string; event: Record<string, unknown> }) => void) => {

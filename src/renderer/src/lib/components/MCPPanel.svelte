@@ -215,14 +215,14 @@
   .icon-btn {
     display: flex; align-items: center; justify-content: center;
     width: 26px; height: 26px; border: none; background: transparent;
-    color: #999; border-radius: 4px; cursor: pointer;
+    color: #777; border-radius: 4px; cursor: pointer;
   }
-  .icon-btn:hover { background: #222; color: #e6e6e6; }
+  .icon-btn:hover { background: #1e1e1e; color: #bbb; }
 
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
-    width: 20px; height: 20px; border: 2px solid #333;
-    border-top-color: #c084fc; border-radius: 50%;
+    width: 20px; height: 20px; border: 2px solid #252525;
+    border-top-color: #b090e0; border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -234,40 +234,40 @@
   /* Add form */
   .add-form {
     background: #1a1a1a; border-radius: 8px; padding: 14px;
-    margin-bottom: 12px; border: 1px solid #262626;
+    margin-bottom: 12px; border: 1px solid #1e1e1e;
   }
   .form-group { margin-bottom: 10px; }
   .form-label {
-    display: block; font-size: 11px; font-weight: 500; color: #999;
+    display: block; font-size: 11px; font-weight: 500; color: #777;
     margin-bottom: 4px;
   }
   .form-label .hint { color: #555; font-weight: 400; }
   .form-input {
-    width: 100%; padding: 7px 10px; border: 1px solid #333;
-    background: #0d0d0d; color: #e6e6e6; border-radius: 5px;
+    width: 100%; padding: 7px 10px; border: 1px solid #252525;
+    background: #0e0e0e; color: #bbb; border-radius: 5px;
     font-size: 13px; font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
     outline: none;
   }
-  .form-input:focus { border-color: #c084fc; }
+  .form-input:focus { border-color: #b090e0; }
   .form-input.small { padding: 5px 8px; font-size: 12px; }
 
   .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
   .btn {
-    padding: 6px 14px; border: 1px solid #333; border-radius: 5px;
+    padding: 6px 14px; border: 1px solid #252525; border-radius: 5px;
     font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
   }
-  .btn.secondary { background: transparent; color: #999; }
-  .btn.secondary:hover { background: #222; color: #e6e6e6; }
+  .btn.secondary { background: transparent; color: #777; }
+  .btn.secondary:hover { background: #1e1e1e; color: #bbb; }
   .btn.primary {
-    background: rgba(192, 132, 252, 0.15); border-color: rgba(192, 132, 252, 0.3);
-    color: #c084fc;
+    background: rgba(155, 111, 212, 0.1); border-color: rgba(155, 111, 212, 0.2);
+    color: #b090e0;
   }
-  .btn.primary:hover { background: rgba(192, 132, 252, 0.25); }
+  .btn.primary:hover { background: rgba(155, 111, 212, 0.18); }
 
   /* Server cards */
   .server-list { display: flex; flex-direction: column; gap: 8px; }
   .server-card {
-    background: #1a1a1a; border-radius: 8px; border: 1px solid #262626;
+    background: #1a1a1a; border-radius: 8px; border: 1px solid #1e1e1e;
     overflow: hidden;
   }
   .server-header {
@@ -275,7 +275,7 @@
     padding: 10px 12px; gap: 8px;
   }
   .server-info { flex: 1; min-width: 0; }
-  .server-name { display: block; font-size: 13px; font-weight: 500; color: #e6e6e6; }
+  .server-name { display: block; font-size: 13px; font-weight: 500; color: #bbb; }
   .server-cmd {
     display: block; font-size: 11px; color: #666; margin-top: 2px;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
@@ -288,33 +288,33 @@
     width: 24px; height: 24px; border: none; background: transparent;
     color: #666; border-radius: 4px; cursor: pointer;
   }
-  .icon-btn-sm:hover { background: #262626; color: #e6e6e6; }
-  .icon-btn-sm.danger:hover { color: #f87171; }
+  .icon-btn-sm:hover { background: #1e1e1e; color: #bbb; }
+  .icon-btn-sm.danger:hover { color: #d66; }
 
   /* Env section */
   .env-section {
-    padding: 8px 12px 10px; border-top: 1px solid #262626; background: #161616;
+    padding: 8px 12px 10px; border-top: 1px solid #1e1e1e; background: #131313;
   }
   .env-row {
     display: flex; align-items: center; gap: 6px; padding: 4px 0;
     font-size: 12px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
   }
-  .env-key { color: #60a5fa; }
+  .env-key { color: #4a85c4; }
   .env-eq { color: #666; }
-  .env-val { color: #999; flex: 1; }
+  .env-val { color: #888; flex: 1; }
   .remove-btn {
     width: 18px; height: 18px; border: none; background: transparent;
     color: #666; cursor: pointer; font-size: 14px; border-radius: 3px;
     display: flex; align-items: center; justify-content: center;
   }
-  .remove-btn:hover { background: #222; color: #f87171; }
+  .remove-btn:hover { background: #1e1e1e; color: #d66; }
 
   .env-add-row { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
   .env-add-row .form-input { flex: 1; }
   .add-env-btn {
-    width: 28px; height: 28px; border: 1px solid #333; background: transparent;
-    color: #999; border-radius: 4px; cursor: pointer; font-size: 16px;
+    width: 28px; height: 28px; border: 1px solid #252525; background: transparent;
+    color: #777; border-radius: 4px; cursor: pointer; font-size: 16px;
     display: flex; align-items: center; justify-content: center;
   }
-  .add-env-btn:hover { background: #222; color: #e6e6e6; border-color: #444; }
+  .add-env-btn:hover { background: #1e1e1e; color: #bbb; border-color: #333; }
 </style>

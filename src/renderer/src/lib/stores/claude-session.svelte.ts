@@ -61,6 +61,18 @@ function extractText(content: unknown): { text: string; blocks: ContentBlock[] }
   return { text: textParts.join('\n'), blocks }
 }
 
+/** Readable label for a tool name (e.g. "Read" → "Reading file", "Bash" → "Running command") */
+function formatToolLabel(name: string): string {
+  const map: Record<string, string> = {
+    Read: 'Reading file', Write: 'Writing file', Edit: 'Editing file',
+    MultiEdit: 'Editing file', Bash: 'Running command', Glob: 'Finding files',
+    Grep: 'Searching', LS: 'Listing directory', Browser: 'Browsing',
+    NotebookEdit: 'Editing notebook', TodoRead: 'Reading tasks',
+    TodoWrite: 'Updating tasks', Task: 'Running task'
+  }
+  return map[name] || name
+}
+
 class ClaudeSessionStore {
   conversations = $state<ClaudeConversation[]>([])
   activeId = $state<string | null>(null)
@@ -107,7 +119,8 @@ class ClaudeSessionStore {
       messages: [],
       isStreaming: false,
       streamingContent: '',
-      streamingBlocks: []
+      streamingBlocks: [],
+      streamingStatus: ''
     }
 
     this.conversations = [...this.conversations, conversation]
@@ -116,9 +129,9 @@ class ClaudeSessionStore {
     return id
   }
 
-  /** Resume a saved session — creates a conversation with the existing sessionId */
-  resume(saved: SavedSession): string {
-    // Check if already open
+  /** Resume a saved session — reads Claude Code's native transcript and replaces current conversation */
+  async resume(saved: SavedSession): Promise<string> {
+    // Check if this session is already open
     const existing = this.conversations.find((c) => c.claudeSessionId === saved.sessionId)
     if (existing) {
       this.activeId = existing.id
@@ -126,25 +139,56 @@ class ClaudeSessionStore {
       return existing.id
     }
 
-    const id = `claude-${nextConvId++}`
+    // Read conversation history from Claude Code's own JSONL transcript
+    let restoredMessages: ClaudeMessage[] = []
+    try {
+      restoredMessages = await window.zeus.claudeSession.readTranscript(
+        saved.sessionId,
+        saved.workspacePath
+      )
+    } catch { /* ignore */ }
 
-    // Add a system-like message so the user sees the session was restored
-    const resumeMsg: ClaudeMessage = {
-      id: `msg-${Date.now()}-resume`,
-      role: 'assistant',
-      content: `Resumed session: **${saved.title}**\n\nThis conversation will continue from where you left off. Send a message to pick up.`,
-      timestamp: saved.lastUsed
+    // Fallback message if transcript is empty or not found
+    if (restoredMessages.length === 0) {
+      restoredMessages = [{
+        id: `msg-${Date.now()}-resume`,
+        role: 'assistant' as const,
+        content: `Resumed session: **${saved.title}**\n\nSend a message to continue.`,
+        timestamp: saved.lastUsed
+      }]
     }
 
+    // Try to reuse the current active conversation (same workspace) instead of creating a new tab
+    const current = this.activeId
+      ? this.conversations.find((c) => c.id === this.activeId)
+      : null
+    const sameWorkspace = current && current.workspacePath === saved.workspacePath
+
+    if (sameWorkspace && current && !current.isStreaming) {
+      // Replace current conversation in-place
+      current.claudeSessionId = saved.sessionId
+      current.title = saved.title
+      current.messages = restoredMessages
+      current.streamingContent = ''
+      current.streamingBlocks = []
+      current.streamingStatus = ''
+      this.conversations = [...this.conversations] // trigger reactivity
+      uiStore.activeView = 'claude'
+      return current.id
+    }
+
+    // Fallback: create new conversation if no suitable current one
+    const id = `claude-${nextConvId++}`
     const conversation: ClaudeConversation = {
       id,
       claudeSessionId: saved.sessionId,
       title: saved.title,
       workspacePath: saved.workspacePath,
-      messages: [resumeMsg],
+      messages: restoredMessages,
       isStreaming: false,
       streamingContent: '',
-      streamingBlocks: []
+      streamingBlocks: [],
+      streamingStatus: ''
     }
 
     this.conversations = [...this.conversations, conversation]
@@ -176,6 +220,7 @@ class ClaudeSessionStore {
     conv.isStreaming = true
     conv.streamingContent = ''
     conv.streamingBlocks = []
+    conv.streamingStatus = 'Sending…'
 
     // Trigger reactivity
     this.conversations = [...this.conversations]
@@ -222,11 +267,36 @@ class ClaudeSessionStore {
     if (conv?.isStreaming) {
       await window.zeus.claudeSession.abort(id)
       conv.isStreaming = false
+      conv.streamingStatus = ''
       this.conversations = [...this.conversations]
     }
   }
 
   // ── Private Event Handlers ─────────────────────────────────────────────────
+
+  /** Format tool status with detail from input */
+  private _formatToolStatus(toolName: string, input: Record<string, unknown>): string {
+    const label = formatToolLabel(toolName)
+    let detail = ''
+    if (input.command) detail = String(input.command).slice(0, 60)
+    else if (input.file_path) detail = String(input.file_path)
+    else if (input.pattern) detail = String(input.pattern)
+    else if (input.query) detail = String(input.query).slice(0, 60)
+    else if (input.path) detail = String(input.path)
+    return detail ? `${label}: ${detail}` : label
+  }
+
+  /** Update streaming status from blocks array */
+  private _updateStatusFromBlocks(conv: ClaudeConversation, blocks: ContentBlock[], text: string): void {
+    const lastBlock = blocks[blocks.length - 1]
+    if (lastBlock?.type === 'tool_use' && lastBlock.name) {
+      conv.streamingStatus = this._formatToolStatus(lastBlock.name, lastBlock.input ?? {})
+    } else if (lastBlock?.type === 'thinking') {
+      conv.streamingStatus = 'Thinking…'
+    } else if (text) {
+      conv.streamingStatus = 'Writing…'
+    }
+  }
 
   /** Throttled reactivity trigger — batch rapid streaming events into one update per frame */
   private _reactivityPending = false
@@ -239,43 +309,90 @@ class ClaudeSessionStore {
     })
   }
 
-  private _handleEvent(id: string, event: ClaudeStreamEvent) {
+  private _handleEvent(id: string, rawEvent: ClaudeStreamEvent) {
     const conv = this.conversations.find((c) => c.id === id)
     if (!conv) return
 
+    // Unwrap stream_event wrapper if present (from --include-partial-messages)
+    let event = rawEvent
+    const rawAny = rawEvent as Record<string, unknown>
+    if (rawEvent.type === 'stream_event' && rawAny.event && typeof rawAny.event === 'object') {
+      event = rawAny.event as ClaudeStreamEvent
+    }
+
     // Capture session_id
-    const sid = event.sessionId || (event as Record<string, unknown>).session_id
+    const sid = event.sessionId
+      || (event as Record<string, unknown>).session_id
+      || rawAny.session_id
+      || rawAny.sessionId
     if (typeof sid === 'string') {
       conv.claudeSessionId = sid
     }
 
-    // Handle different event types from stream-json
-    // See: https://code.claude.com/docs/en/headless
-    // Event types: system, assistant, user, result
+    // Handle different event types from stream-json (with --verbose --include-partial-messages)
+    // Event types: system, assistant, user, result, content_block_start, content_block_delta, content_block_stop
+    const any = event as Record<string, unknown>
+
     if (event.type === 'assistant' && event.message?.content) {
       // Assistant message snapshot — contains full content so far
       const { text, blocks } = extractText(event.message.content)
       conv.streamingContent = text
       conv.streamingBlocks = blocks
+      this._updateStatusFromBlocks(conv, blocks, text)
+
+    } else if (event.type === 'content_block_start') {
+      // A new content block has started (text, tool_use, thinking)
+      const cb = any.content_block as Record<string, unknown> | undefined
+      if (cb?.type === 'tool_use' && typeof cb.name === 'string') {
+        const input = (cb.input && typeof cb.input === 'object') ? cb.input as Record<string, unknown> : {}
+        conv.streamingStatus = this._formatToolStatus(cb.name, input)
+      } else if (cb?.type === 'thinking') {
+        conv.streamingStatus = 'Thinking…'
+      } else if (cb?.type === 'text') {
+        conv.streamingStatus = 'Writing…'
+      }
+
+    } else if (event.type === 'content_block_delta') {
+      // Incremental delta for a content block
+      const delta = any.delta as Record<string, unknown> | undefined
+      if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+        conv.streamingContent += delta.text
+        conv.streamingStatus = 'Writing…'
+      } else if (delta?.type === 'thinking_delta') {
+        conv.streamingStatus = 'Thinking…'
+      } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+        // Tool input being streamed — update status with partial info
+        conv.streamingStatus = conv.streamingStatus || 'Processing…'
+      }
+
+    } else if (event.type === 'content_block_stop') {
+      // Block finished — status will be updated by next block or result
+      conv.streamingStatus = 'Processing…'
+
     } else if (event.type === 'result') {
       // Final result — use result text if available
       if (typeof event.result === 'string' && event.result) {
         conv.streamingContent = event.result
       }
+      conv.streamingStatus = ''
+
     } else if (event.type === 'system') {
-      // Session init event — nothing to display but captures session_id above
+      conv.streamingStatus = 'Initializing…'
+
     } else if (event.type === 'user') {
-      // Tool result event — could display tool outputs if needed
-    } else if (event.type === 'raw' && typeof (event as Record<string, unknown>).text === 'string') {
-      // Non-JSON output from claude
-      conv.streamingContent += (event as Record<string, unknown>).text as string
+      // Tool result returned — Claude will continue processing
+      conv.streamingStatus = 'Processing tool results…'
+
+    } else if (event.type === 'raw' && typeof any.text === 'string') {
+      conv.streamingContent += any.text as string
+
     } else if (event.type === 'error' || event.type === 'stderr') {
-      const errText = typeof (event as Record<string, unknown>).text === 'string'
-        ? (event as Record<string, unknown>).text as string
-        : ''
-      // Only show real errors, not progress/spinner output
-      if (errText && !errText.includes('\x1b[') && !errText.includes('Thinking')) {
-        conv.streamingContent += `\n⚠️ ${errText}`
+      const errText = typeof any.text === 'string' ? (any.text as string) : ''
+      // Strip ANSI escape codes for status display
+      const clean = errText.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').trim()
+      if (clean) {
+        // Use stderr for status updates (Claude outputs progress here)
+        conv.streamingStatus = clean.slice(0, 80)
       }
     }
 
@@ -315,6 +432,7 @@ class ClaudeSessionStore {
     conv.isStreaming = false
     conv.streamingContent = ''
     conv.streamingBlocks = []
+    conv.streamingStatus = ''
 
     // Update title from first user message if still default
     if (conv.title === 'Claude Code' && conv.messages.length >= 1) {
@@ -327,6 +445,7 @@ class ClaudeSessionStore {
     }
 
     // Auto-save session to history for resume
+    // Messages are read from Claude Code's native transcript on resume — no need to duplicate
     if (conv.claudeSessionId && conv.workspacePath) {
       window.zeus.claudeSession.save({
         sessionId: conv.claudeSessionId,

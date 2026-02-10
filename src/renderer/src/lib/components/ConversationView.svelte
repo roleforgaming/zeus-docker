@@ -9,6 +9,7 @@
 
   let scrollEl: HTMLDivElement
   let inputBarRef = $state<InputBar | undefined>(undefined)
+  let isDragOverView = $state(false)
 
   const conv = $derived(claudeSessionStore.activeConversation)
 
@@ -97,7 +98,22 @@
 </script>
 
 <!-- [B5] Always render; use class:hidden instead of {#if} -->
-<div class="conversation-view" class:hidden={!conv || uiStore.activeView !== 'claude'}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="conversation-view"
+  class:hidden={!conv || uiStore.activeView !== 'claude'}
+  ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'; isDragOverView = true }}
+  ondragleave={(e) => { const related = e.relatedTarget as HTMLElement | null; if (!related || !(e.currentTarget as HTMLElement).contains(related)) isDragOverView = false }}
+  ondrop={(e) => { e.preventDefault(); isDragOverView = false; inputBarRef?.handleFileDrop(e) }}
+>
+  {#if isDragOverView}
+    <div class="view-drop-overlay">
+      <div class="view-drop-box">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Drop files to attach</span>
+      </div>
+    </div>
+  {/if}
   {#if conv}
     <div class="messages-scroll" bind:this={scrollEl}>
       <div class="messages-container">
@@ -169,18 +185,20 @@
                 <IconClaude size={18} />
               </div>
               <div class="msg-content">
-                {#if conv.streamingContent}
+                {#if conv.streamingBlocks.length > 0}
                   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                  <div class="md">{@html renderMarkdown(
-                    conv.streamingBlocks.length > 0
-                      ? renderBlocks(conv.streamingBlocks)
-                      : conv.streamingContent
-                  )}</div>
-                {:else}
-                  <div class="thinking">
-                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                  </div>
+                  <div class="md">{@html renderMarkdown(renderBlocks(conv.streamingBlocks))}</div>
+                {:else if conv.streamingContent}
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                  <div class="md">{@html renderMarkdown(conv.streamingContent)}</div>
                 {/if}
+                <!-- Status line: always visible during streaming -->
+                <div class="streaming-status">
+                  <span class="status-indicator">
+                    <span class="pulse"></span>
+                  </span>
+                  <span class="status-text">{conv.streamingStatus || 'Thinking…'}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -200,8 +218,32 @@
     flex: 1; width: 100%; height: 100%;
     display: flex; flex-direction: column;
     background: #0d0d0d; overflow: hidden;
+    position: relative;
   }
   .conversation-view.hidden { display: none; }
+
+  .view-drop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 13, 13, 0.85);
+    pointer-events: none;
+  }
+  .view-drop-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 60px;
+    border: 2px dashed #4a85c4;
+    border-radius: 20px;
+    color: #4a85c4;
+    font-size: 16px;
+    font-weight: 600;
+  }
 
   .messages-scroll {
     flex: 1; overflow-y: auto; overflow-x: hidden;
@@ -244,7 +286,7 @@
     max-width: 420px; margin: 0 auto; padding: 0 0 40px;
   }
   .history-label {
-    font-size: 11px; font-weight: 600; color: #45475a;
+    font-size: 11px; font-weight: 600; color: #404040;
     text-transform: uppercase; letter-spacing: 0.06em;
     display: block; margin-bottom: 8px; padding-left: 2px;
   }
@@ -260,29 +302,29 @@
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
     padding: 8px 12px; border-radius: 8px;
     border: none; background: transparent;
-    color: #a6adc8; cursor: pointer;
+    color: #707070; cursor: pointer;
     transition: background 100ms ease;
     text-align: left; font-family: inherit;
   }
-  .history-resume:hover { background: #181825; color: #cdd6f4; }
+  .history-resume:hover { background: #151515; color: #a0a0a0; }
   .history-title {
     font-size: 13px; font-weight: 500;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     min-width: 0;
   }
   .history-time {
-    font-size: 11px; color: #45475a;
+    font-size: 11px; color: #383838;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
     white-space: nowrap; flex-shrink: 0;
   }
   .history-delete {
     width: 24px; height: 24px; border: none; border-radius: 6px;
-    background: transparent; color: #313244; cursor: pointer;
+    background: transparent; color: #2a2a2a; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; font-size: 16px; line-height: 1;
     transition: all 100ms ease;
   }
-  .history-delete:hover { color: #f38ba8; background: rgba(243, 139, 168, 0.08); }
+  .history-delete:hover { color: #c55; background: rgba(204, 85, 85, 0.06); }
 
   /* ────────────────── Messages ────────────────── */
   .msg { margin-bottom: 2px; }
@@ -370,20 +412,42 @@
   }
   .md :global(summary:hover) { color: #a6adc8; }
 
-  /* ────────────────── Thinking dots ────────────────── */
-  .thinking {
-    display: flex; gap: 5px; padding: 8px 0;
+  /* ────────────────── Streaming status ────────────────── */
+  .streaming-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 4px;
+    font-size: 12px;
+    color: #7f849c;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    animation: status-fade-in 200ms ease;
   }
-  .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #cba6f7; opacity: 0.25;
-    animation: dot-pulse 1.4s ease-in-out infinite;
+  @keyframes status-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
-  .dot:nth-child(2) { animation-delay: 0.16s; }
-  .dot:nth-child(3) { animation-delay: 0.32s; }
-
-  @keyframes dot-pulse {
-    0%, 80%, 100% { opacity: 0.25; transform: scale(1); }
-    40% { opacity: 0.8; transform: scale(1.3); }
+  .status-indicator {
+    position: relative;
+    width: 8px; height: 8px;
+    flex-shrink: 0;
+  }
+  .pulse {
+    display: block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #cba6f7;
+    animation: pulse-ring 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+    100% { opacity: 0.4; transform: scale(0.8); }
+  }
+  .status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 500px;
   }
 </style>

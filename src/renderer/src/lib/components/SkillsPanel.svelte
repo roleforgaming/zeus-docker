@@ -279,67 +279,66 @@
 </div>
 
 <style>
-  .skills-panel { padding: 12px; overflow-y: auto; height: 100%; }
+  .skills-panel { padding: 0 12px 12px; overflow-y: auto; height: 100%; }
 
   /* ── Scope bar ── */
   .scope-bar {
     display: flex; gap: 4px; margin-bottom: 16px;
     background: #1a1a1a; border-radius: 6px; padding: 3px;
+    margin-top: 12px;
   }
   .scope-btn {
     flex: 1; padding: 6px 12px; border: none; background: transparent;
-    color: #999; font-size: 12px; font-weight: 500; border-radius: 4px;
+    color: #777; font-size: 12px; font-weight: 500; border-radius: 4px;
     cursor: pointer; transition: all 120ms ease; font-family: inherit;
   }
-  .scope-btn:hover:not(:disabled) { color: #e6e6e6; }
-  .scope-btn.active { background: #262626; color: #e6e6e6; }
+  .scope-btn:hover:not(:disabled) { color: #ccc; }
+  .scope-btn.active { background: #252525; color: #ccc; }
   .scope-btn:disabled { opacity: 0.4; cursor: default; }
 
   /* ── Loading ── */
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
-    width: 20px; height: 20px; border: 2px solid #333;
-    border-top-color: #c084fc; border-radius: 50%;
+    width: 20px; height: 20px; border: 2px solid #252525;
+    border-top-color: #b090e0; border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
   /* ── Sections ── */
-  .section { margin-bottom: 20px; }
+  .section { margin-bottom: 8px; }
   .section-label {
     display: flex; align-items: center; gap: 6px;
     font-size: 10px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.05em; color: #666;
-    padding: 6px 4px 6px;
+    padding: 8px 16px 6px;
     position: sticky; top: 0; z-index: 2;
-    background: #141414;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-bottom: 1px solid #1e1e1e;
-    margin: 0 -12px; padding-left: 16px; padding-right: 16px;
+    background: #111111;
+    border-bottom: 1px solid #1a1a1a;
+    margin: 0 -12px;
   }
   .section-label .count {
-    background: #262626; color: #999; font-size: 9px;
+    background: #1e1e1e; color: #777; font-size: 9px;
     padding: 1px 5px; border-radius: 8px; font-weight: 500;
   }
   .kind-badge {
     font-size: 10px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  .kind-badge.skill { color: #a6e3a1; }
-  .kind-badge.agent { color: #89b4fa; }
-  .kind-badge.command { color: #cba6f7; }
-  .user-section { color: #585b70; }
+  .kind-badge.skill { color: #6a9e65; }
+  .kind-badge.agent { color: #5a82b0; }
+  .kind-badge.command { color: #b090e0; }
+  .user-section { color: #555; }
 
   /* ── Group headers (subdir folders within commands/) ── */
   .group-header {
     display: flex; align-items: center; gap: 6px;
     padding: 5px 10px; margin: 4px 0 2px;
     border-radius: 5px; cursor: pointer;
-    font-size: 11px; font-weight: 600; color: #7f849c;
+    font-size: 11px; font-weight: 600; color: #555;
     transition: background 120ms ease;
   }
-  .group-header:hover { background: #1a1a1a; color: #a6adc8; }
+  .group-header:hover { background: #1a1a1a; color: #999; }
   .group-label { flex: 1; min-width: 0; }
   .chevron {
     transition: transform 150ms ease; flex-shrink: 0;
@@ -363,15 +362,15 @@
   .cmd-row { display: flex; align-items: center; gap: 6px; }
 
   .cmd-name {
-    font-size: 13px; font-weight: 600; color: #c084fc;
+    font-size: 13px; font-weight: 600; color: #b090e0;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
   }
   .cmd-origin {
-    font-size: 10px; color: #666; background: #1e1e1e;
+    font-size: 10px; color: #666; background: #181818;
     padding: 1px 5px; border-radius: 3px;
   }
   .cmd-desc {
-    font-size: 11px; color: #888; line-height: 1.4;
+    font-size: 11px; color: #777; line-height: 1.4;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .cmd-path {
@@ -392,19 +391,19 @@
     display: flex; align-items: center; justify-content: center;
     transition: all 120ms ease;
   }
-  .action-btn:hover { background: #262626; color: #e6e6e6; }
+  .action-btn:hover { background: #1e1e1e; color: #bbb; }
 
   /* ── Empty state ── */
   .empty-custom {
     text-align: center; padding: 24px 16px; color: #666;
   }
-  .empty-icon { margin-bottom: 12px; opacity: 0.4; }
-  .empty-title { font-size: 13px; font-weight: 600; color: #888; margin: 0 0 6px; }
+  .empty-icon { margin-bottom: 12px; opacity: 0.3; }
+  .empty-title { font-size: 13px; font-weight: 600; color: #777; margin: 0 0 6px; }
   .empty-desc { font-size: 11px; line-height: 1.6; margin: 0; }
   .empty-desc code {
-    background: #1e1e1e; padding: 1px 5px; border-radius: 3px;
+    background: #181818; padding: 1px 5px; border-radius: 3px;
     font-size: 11px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    color: #c084fc;
+    color: #b090e0;
   }
 
   /* ── Built-in / MCP skill items ── */
@@ -417,7 +416,7 @@
 
   .skill-info { flex: 1; min-width: 0; }
   .skill-name {
-    display: block; font-size: 13px; font-weight: 500; color: #e6e6e6;
+    display: block; font-size: 13px; font-weight: 500; color: #bbb;
   }
   .skill-desc-text {
     display: block; font-size: 11px; color: #666; margin-top: 2px;
@@ -433,18 +432,18 @@
   }
   .toggle-slider {
     position: absolute; inset: 0;
-    background: #333; border-radius: 10px;
+    background: #252525; border-radius: 10px;
     transition: background 200ms ease;
   }
   .toggle-slider::after {
     content: ''; position: absolute;
     width: 16px; height: 16px; border-radius: 50%;
-    background: #999; top: 2px; left: 2px;
+    background: #777; top: 2px; left: 2px;
     transition: transform 200ms ease, background 200ms ease;
   }
-  .toggle.on .toggle-slider { background: rgba(192, 132, 252, 0.3); }
+  .toggle.on .toggle-slider { background: rgba(155, 111, 212, 0.25); }
   .toggle.on .toggle-slider::after {
-    transform: translateX(16px); background: #c084fc;
+    transform: translateX(16px); background: #b090e0;
   }
 
 </style>

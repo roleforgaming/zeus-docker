@@ -35,7 +35,8 @@
     await Promise.all([
       workspaceStore.load(),
       claudeStore.check(),
-      ideStore.load()
+      ideStore.load(),
+      uiStore.syncModelFromSettings()
     ])
 
     await workspaceStore.restoreLast()
@@ -257,22 +258,22 @@
   }
   :global(::-webkit-scrollbar) { width: 6px; height: 6px; }
   :global(::-webkit-scrollbar-track) { background: transparent; }
-  :global(::-webkit-scrollbar-thumb) { background: #333; border-radius: 3px; }
-  :global(::-webkit-scrollbar-thumb:hover) { background: #444; }
+  :global(::-webkit-scrollbar-thumb) { background: #222; border-radius: 3px; }
+  :global(::-webkit-scrollbar-thumb:hover) { background: #333; }
 
   .titlebar {
     height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #0d0d0d;
-    border-bottom: 1px solid #262626;
+    background: #0a0a0a;
+    border-bottom: 1px solid #1a1a1a;
     -webkit-app-region: drag;
   }
   .titlebar-text {
     font-size: 13px;
     font-weight: 500;
-    color: #999;
+    color: #505050;
     pointer-events: none;
   }
 

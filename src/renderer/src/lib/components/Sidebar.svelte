@@ -98,8 +98,8 @@
   .sidebar {
     width: 260px;
     min-width: 260px;
-    background: #141414;
-    border-right: 1px solid #262626;
+    background: #131313;
+    border-right: 1px solid #222;
     display: flex;
     flex-direction: column;
     transition: width 200ms ease, min-width 200ms ease, opacity 200ms ease;
@@ -107,12 +107,12 @@
   }
   .sidebar.collapsed { width: 0; min-width: 0; opacity: 0; border-right: none; }
 
-  .sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid #262626; }
+  .sidebar-header { padding: 16px 16px 12px; border-bottom: 1px solid #222; }
   .sidebar-logo {
     display: flex;
     align-items: center;
     gap: 10px;
-    color: #c084fc;
+    color: #b090e0;
     font-weight: 600;
     font-size: 15px;
     letter-spacing: -0.01em;
@@ -144,21 +144,21 @@
   }
   .empty-state p { font-size: 12px; line-height: 1.4; }
 
-  .sidebar-footer { padding: 12px 16px; border-top: 1px solid #262626; }
+  .sidebar-footer { padding: 12px 16px; border-top: 1px solid #222; }
   .claude-status { display: flex; align-items: center; gap: 10px; }
 
   .status-dot {
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
     transition: background 200ms ease;
-    background: #666;
+    background: #555;
   }
-  .status-dot.installed { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, 0.4); }
-  .status-dot.not-installed { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.4); }
-  .status-dot.updating { background: #fbbf24; animation: pulse 1.5s infinite; }
+  .status-dot.installed { background: #4ade80; box-shadow: 0 0 5px rgba(74, 222, 128, 0.3); }
+  .status-dot.not-installed { background: #e06060; box-shadow: 0 0 5px rgba(224, 96, 96, 0.3); }
+  .status-dot.updating { background: #ddb030; animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .claude-info { flex: 1; min-width: 0; }
-  .claude-label { display: block; font-size: 12px; font-weight: 500; color: #e6e6e6; }
+  .claude-label { display: block; font-size: 12px; font-weight: 500; color: #c0c0c0; }
   .claude-version {
     display: block; font-size: 10px; color: #666;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
@@ -167,8 +167,8 @@
   .icon-btn {
     display: flex; align-items: center; justify-content: center;
     width: 30px; height: 30px; border: none; background: transparent;
-    color: #999; border-radius: 6px; cursor: pointer; transition: all 120ms ease;
+    color: #777; border-radius: 6px; cursor: pointer; transition: all 120ms ease;
   }
-  .icon-btn:hover { background: #222; color: #e6e6e6; }
+  .icon-btn:hover { background: #1e1e1e; color: #c0c0c0; }
   .icon-btn.small { width: 24px; height: 24px; }
 </style>

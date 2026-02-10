@@ -502,6 +502,7 @@ function registerIPC(): void {
   ipcMain.handle('claude-session:save', (_, session: { sessionId: string; title: string; workspacePath: string }) => {
     if (!store.savedSessions) store.savedSessions = []
     const existing = store.savedSessions.find((s) => s.sessionId === session.sessionId)
+
     if (existing) {
       existing.title = session.title
       existing.lastUsed = Date.now()
@@ -523,6 +524,11 @@ function registerIPC(): void {
     store.savedSessions = store.savedSessions.filter((s) => s.sessionId !== sessionId)
     saveStore(store)
     return true
+  })
+
+  // ── Read Claude Code's native session transcript ──
+  ipcMain.handle('claude-session:read-transcript', (_, sessionId: string, workspacePath: string) => {
+    return readClaudeTranscript(sessionId, workspacePath)
   })
 
   // ── Claude Session (headless -p mode with stream-json) ──
@@ -1004,9 +1010,9 @@ function spawnClaudeSession(conversationId: string, prompt: string, cwd: string,
     } catch { /* ignore */ }
   }
 
-  // Build args: claude -p "prompt" --output-format stream-json --verbose [--model x] [--resume sessionId]
+  // Build args: claude -p "prompt" --output-format stream-json --verbose --include-partial-messages [--model x] [--resume sessionId]
   const claudePath = getClaudeCliPath()
-  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose']
+  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--include-partial-messages']
 
   if (model) {
     args.push('--model', model)
@@ -1140,6 +1146,161 @@ function killAllTerminals(): void {
   }
   terminals.clear()
   killAllClaudeSessions()
+}
+
+// ── Read Claude Code's native session JSONL transcript ───────────────────────
+// Claude stores sessions in ~/.claude/projects/<encoded-path>/<session-uuid>.jsonl
+// Each line is a JSONL object with types: user, assistant, tool_use, tool_result, progress, etc.
+// We parse user/assistant messages into our ClaudeMessage format.
+
+interface TranscriptMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  blocks?: Array<{ type: string; text?: string; name?: string; input?: Record<string, unknown>; content?: string; thinking?: string }>
+  timestamp: number
+}
+
+function readClaudeTranscript(sessionId: string, workspacePath: string): TranscriptMessage[] {
+  const claudeDir = path.join(os.homedir(), '.claude', 'projects')
+  // Encode workspace path: /Users/young/Workspace/zeus → -Users-young-Workspace-zeus
+  const encoded = workspacePath.replace(/\//g, '-')
+
+  // Try the project dir first, then check parent path variants
+  const candidates = [encoded]
+  // Also try without leading dash
+  if (encoded.startsWith('-')) candidates.push(encoded)
+
+  let jsonlPath: string | null = null
+  for (const candidate of candidates) {
+    const p = path.join(claudeDir, candidate, `${sessionId}.jsonl`)
+    if (fs.existsSync(p)) {
+      jsonlPath = p
+      break
+    }
+  }
+
+  // Also search all project dirs for this session (fallback)
+  if (!jsonlPath) {
+    try {
+      const dirs = fs.readdirSync(claudeDir)
+      for (const dir of dirs) {
+        const p = path.join(claudeDir, dir, `${sessionId}.jsonl`)
+        if (fs.existsSync(p)) {
+          jsonlPath = p
+          break
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (!jsonlPath) return []
+
+  try {
+    const raw = fs.readFileSync(jsonlPath, 'utf-8')
+    const lines = raw.split('\n').filter((l) => l.trim())
+    const messages: TranscriptMessage[] = []
+
+    for (const line of lines) {
+      try {
+        const obj = JSON.parse(line)
+        const type = obj.type as string
+        const msg = obj.message as { role?: string; content?: unknown } | undefined
+        const timestamp = obj.timestamp ? new Date(obj.timestamp).getTime() : Date.now()
+
+        if (type === 'user' && msg?.role === 'user') {
+          const content = msg.content
+          let text = ''
+          if (typeof content === 'string') {
+            text = content
+          } else if (Array.isArray(content)) {
+            // Extract text parts, skip tool_result entries
+            const textParts: string[] = []
+            for (const part of content) {
+              if (typeof part === 'string') textParts.push(part)
+              else if (part?.type === 'text' && typeof part.text === 'string') {
+                // Skip IDE-injected context messages
+                if (!part.text.startsWith('<ide_opened_file>') && !part.text.startsWith('<ide_')) {
+                  textParts.push(part.text)
+                }
+              }
+            }
+            text = textParts.join('\n')
+          }
+          // Skip tool_result-only user messages and empty ones
+          if (text.trim()) {
+            messages.push({
+              id: obj.uuid || `msg-${timestamp}-user`,
+              role: 'user',
+              content: text.trim(),
+              timestamp
+            })
+          }
+        } else if (type === 'assistant' && msg?.role === 'assistant') {
+          const content = msg.content
+          const blocks: TranscriptMessage['blocks'] = []
+          const textParts: string[] = []
+
+          if (typeof content === 'string') {
+            textParts.push(content)
+            blocks.push({ type: 'text', text: content })
+          } else if (Array.isArray(content)) {
+            for (const part of content) {
+              if (typeof part === 'string') {
+                textParts.push(part)
+                blocks.push({ type: 'text', text: part })
+              } else if (part?.type === 'text' && typeof part.text === 'string') {
+                textParts.push(part.text)
+                blocks.push({ type: 'text', text: part.text })
+              } else if (part?.type === 'thinking' && typeof part.thinking === 'string') {
+                blocks.push({ type: 'thinking', thinking: part.thinking.slice(0, 300) })
+              } else if (part?.type === 'tool_use') {
+                blocks.push({
+                  type: 'tool_use',
+                  name: part.name || 'unknown',
+                  input: part.input || {}
+                })
+              }
+            }
+          }
+
+          // Only add if there's actual content (skip tool-use-only messages with no text)
+          if (textParts.join('').trim() || blocks.length > 0) {
+            messages.push({
+              id: obj.uuid || `msg-${timestamp}-assistant`,
+              role: 'assistant',
+              content: textParts.join('\n'),
+              blocks: blocks.length > 0 ? blocks : undefined,
+              timestamp
+            })
+          }
+        }
+      } catch { /* skip malformed lines */ }
+    }
+
+    // Merge consecutive assistant messages (Claude sends multiple chunks)
+    const merged: TranscriptMessage[] = []
+    for (const msg of messages) {
+      const prev = merged[merged.length - 1]
+      if (prev && prev.role === 'assistant' && msg.role === 'assistant') {
+        // Merge text
+        if (msg.content) {
+          prev.content = prev.content ? prev.content + '\n' + msg.content : msg.content
+        }
+        // Merge blocks
+        if (msg.blocks) {
+          prev.blocks = [...(prev.blocks || []), ...msg.blocks]
+        }
+      } else {
+        merged.push({ ...msg })
+      }
+    }
+
+    return merged
+  } catch (e) {
+    console.error('[zeus] Failed to read Claude transcript:', e)
+    return []
+  }
 }
 
 app.whenReady().then(() => {

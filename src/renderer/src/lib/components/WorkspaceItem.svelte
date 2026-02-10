@@ -73,13 +73,13 @@
     font-family: inherit;
     border: 2px solid transparent;
   }
-  .workspace-item:hover { background: #222; }
-  .workspace-item.active { background: rgba(192, 132, 252, 0.15); }
-  .workspace-item.active .workspace-name { color: #c084fc; }
+  .workspace-item:hover { background: #1e1e1e; }
+  .workspace-item.active { background: rgba(176, 144, 224, 0.1); }
+  .workspace-item.active .workspace-name { color: #b090e0; }
 
   /* Drag-over indicator */
   .workspace-item.drag-over {
-    border-top: 2px solid #c084fc;
+    border-top: 2px solid #b090e0;
     border-radius: 0;
   }
 
@@ -103,20 +103,20 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    color: #999;
+    color: #888;
     font-size: 14px;
     font-weight: 600;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
     text-transform: uppercase;
   }
-  .workspace-icon.active { background: rgba(192, 132, 252, 0.08); color: #c084fc; }
+  .workspace-icon.active { background: rgba(176, 144, 224, 0.08); color: #b090e0; }
 
   .workspace-details { flex: 1; min-width: 0; }
 
   .workspace-name {
     font-size: 13px;
     font-weight: 500;
-    color: #e6e6e6;
+    color: #ccc;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

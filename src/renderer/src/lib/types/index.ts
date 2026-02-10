@@ -126,6 +126,8 @@ export interface ClaudeConversation {
   isStreaming: boolean
   streamingContent: string
   streamingBlocks: ContentBlock[]
+  /** Real-time status line shown during streaming (e.g. "Reading file.ts…", "Running bash…") */
+  streamingStatus: string
 }
 
 export interface ClaudeStreamEvent {
@@ -190,6 +192,7 @@ export interface ZeusAPI {
     close(conversationId: string): Promise<boolean>
     listSaved(workspacePath: string): Promise<SavedSession[]>
     save(session: { sessionId: string; title: string; workspacePath: string }): Promise<boolean>
+    readTranscript(sessionId: string, workspacePath: string): Promise<ClaudeMessage[]>
     deleteSaved(sessionId: string): Promise<boolean>
     onEvent(callback: (payload: { id: string; event: ClaudeStreamEvent }) => void): () => void
     onDone(callback: (payload: { id: string; exitCode: number; sessionId?: string }) => void): () => void

@@ -71,41 +71,41 @@
     backdrop-filter: blur(4px);
   }
   .content {
-    position: relative; background: #1f1f1f; border: 1px solid #333;
+    position: relative; background: #181818; border: 1px solid #252525;
     border-radius: 12px; width: 360px; max-height: 80vh;
-    overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   }
   .header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid #262626;
+    padding: 16px 20px; border-bottom: 1px solid #1e1e1e;
   }
-  h2 { font-size: 15px; font-weight: 600; color: #e6e6e6; }
+  h2 { font-size: 15px; font-weight: 600; color: #a0a0a0; }
   .close-btn {
     display: flex; align-items: center; justify-content: center;
     width: 28px; height: 28px; border: none; background: transparent;
-    color: #666; border-radius: 6px; cursor: pointer; font-size: 20px;
+    color: #505050; border-radius: 6px; cursor: pointer; font-size: 20px;
   }
-  .close-btn:hover { background: #222; color: #e6e6e6; }
+  .close-btn:hover { background: #191919; color: #a0a0a0; }
   .body { padding: 16px 20px; }
 
   .status-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-  .status-row p { color: #999; font-size: 13px; }
+  .status-row p { color: #606060; font-size: 13px; }
 
   .spinner {
-    width: 16px; height: 16px; border: 2px solid #333;
-    border-top-color: #c084fc; border-radius: 50%;
+    width: 16px; height: 16px; border: 2px solid #252525;
+    border-top-color: #9b6fd4; border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .success { color: #4ade80; font-weight: 500; font-size: 13px; }
-  .error { color: #f87171; font-weight: 500; font-size: 13px; }
+  .success { color: #3a9e64; font-weight: 500; font-size: 13px; }
+  .error { color: #c55; font-weight: 500; font-size: 13px; }
 
   .output {
     margin-top: 8px;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
-    font-size: 11px; color: #666;
+    font-size: 11px; color: #505050;
     white-space: pre-wrap; max-height: 200px; overflow-y: auto;
-    background: #1a1a1a; padding: 8px; border-radius: 6px;
+    background: #131313; padding: 8px; border-radius: 6px;
   }
 </style>

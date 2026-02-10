@@ -161,7 +161,7 @@
   .tab-bar::-webkit-scrollbar-track { background: transparent; }
   .tab-bar::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
   .tab-bar:hover::-webkit-scrollbar-thumb { background: #333; }
-  .tab-bar:hover::-webkit-scrollbar-thumb:hover { background: #555; }
+  .tab-bar:hover::-webkit-scrollbar-thumb:hover { background: #444; }
 
   .tab {
     display: flex;
@@ -171,14 +171,14 @@
     border-radius: 6px;
     white-space: nowrap;
     font-size: 12px;
-    color: #999;
+    color: #777;
     transition: all 120ms ease;
     border: 1px solid transparent;
     background: transparent;
     flex-shrink: 0;
   }
-  .tab:hover { background: #222; color: #e6e6e6; }
-  .tab.active { background: #1a1a1a; color: #e6e6e6; border-color: #262626; }
+  .tab:hover { background: #1e1e1e; color: #bbb; }
+  .tab.active { background: #1a1a1a; color: #ccc; border-color: #282828; }
 
   .tab-body {
     display: flex;
@@ -188,12 +188,12 @@
   }
 
   .tab-icon { display: flex; align-items: center; }
-  .tab-icon.claude { color: #cba6f7; }
-  .tab-icon.doc { color: #60a5fa; }
+  .tab-icon.claude { color: #b090e0; }
+  .tab-icon.doc { color: #6098d0; }
 
   .streaming-dot {
     width: 6px; height: 6px; border-radius: 50%;
-    background: #cba6f7; flex-shrink: 0;
+    background: #b090e0; flex-shrink: 0;
     animation: stream-pulse 1.2s ease-in-out infinite;
   }
   @keyframes stream-pulse {
@@ -212,15 +212,15 @@
     border-radius: 3px;
     border: none;
     background: transparent;
-    color: #666;
+    color: #555;
     cursor: pointer;
     font-size: 14px;
     line-height: 1;
     padding: 0;
   }
-  .tab-close:hover { background: #2a2a2a; color: #e6e6e6; }
+  .tab-close:hover { background: #252525; color: #bbb; }
 
   .tab-sep {
-    width: 1px; height: 16px; background: #333; margin: 0 4px; flex-shrink: 0;
+    width: 1px; height: 16px; background: #252525; margin: 0 4px; flex-shrink: 0;
   }
 </style>

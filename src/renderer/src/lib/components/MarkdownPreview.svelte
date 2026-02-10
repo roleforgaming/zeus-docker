@@ -143,8 +143,8 @@
   /* ── Loading / Empty ── */
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
-    width: 18px; height: 18px; border: 2px solid #333;
-    border-top-color: #c084fc; border-radius: 50%;
+    width: 18px; height: 18px; border: 2px solid #252525;
+    border-top-color: #b090e0; border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -161,7 +161,7 @@
   /* ── Folder group ── */
   .folder-group {
     margin-bottom: 0;
-    border-top: 1px solid #1e1e1e;
+    border-top: 1px solid #1a1a1a;
     padding-top: 4px;
   }
   .folder-group.first { border-top: none; padding-top: 0; }
@@ -169,11 +169,11 @@
   .folder-header {
     display: flex; align-items: center; gap: 6px;
     width: 100%; padding: 7px 8px; border: none;
-    background: rgba(255,255,255,0.02); color: #999; cursor: pointer;
+    background: rgba(255,255,255,0.015); color: #777; cursor: pointer;
     border-radius: 5px; font-size: 11px; font-weight: 500;
     font-family: inherit; transition: all 100ms ease;
   }
-  .folder-header:hover { background: rgba(255,255,255,0.05); color: #e6e6e6; }
+  .folder-header:hover { background: rgba(255,255,255,0.035); color: #bbb; }
 
   .chevron {
     transition: transform 150ms ease; flex-shrink: 0; color: #555;
@@ -186,9 +186,9 @@
     display: inline-flex; align-items: center; gap: 3px;
     font-size: 11px; font-weight: 600;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    color: #60a5fa;
+    color: #4a85c4;
   }
-  .folder-badge.root { color: #60a5fa; }
+  .folder-badge.root { color: #4a85c4; }
 
   /* Path breadcrumb */
   .folder-path {
@@ -197,9 +197,9 @@
     font-size: 11px; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .path-sep { color: #444; margin: 0 2px; }
-  .path-seg { color: #777; }
-  .path-seg.last { color: #fbbf24; font-weight: 600; }
+  .path-sep { color: #333; margin: 0 2px; }
+  .path-seg { color: #555; }
+  .path-seg.last { color: #b89530; font-weight: 600; }
 
   .folder-count {
     font-size: 9px; color: #555; background: #1a1a1a;
@@ -219,12 +219,12 @@
     border-left: 2px solid transparent;
   }
   .file-item:hover {
-    background: rgba(255,255,255,0.03);
-    border-left-color: #333;
+    background: rgba(255,255,255,0.02);
+    border-left-color: #2a2a2a;
   }
   .file-item.active {
-    background: rgba(192, 132, 252, 0.08);
-    border-left-color: #c084fc;
+    background: rgba(155, 111, 212, 0.06);
+    border-left-color: #b090e0;
   }
 
   .file-left {
@@ -232,30 +232,30 @@
     min-width: 0; flex: 1;
   }
 
-  .file-icon { color: #60a5fa; flex-shrink: 0; margin-top: 1px; }
-  .file-item.active .file-icon { color: #c084fc; }
+  .file-icon { color: #4a85c4; flex-shrink: 0; margin-top: 1px; }
+  .file-item.active .file-icon { color: #b090e0; }
 
   .file-info {
     display: flex; flex-direction: column; gap: 1px; min-width: 0;
   }
 
   .file-name {
-    font-size: 12px; font-weight: 500; color: #ccc;
+    font-size: 12px; font-weight: 500; color: #909090;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .file-item:hover .file-name { color: #e6e6e6; }
-  .file-item.active .file-name { color: #e6e6e6; font-weight: 600; }
+  .file-item:hover .file-name { color: #bbb; }
+  .file-item.active .file-name { color: #ccc; font-weight: 600; }
 
   .file-relpath {
-    font-size: 10px; color: #4a4a5a;
+    font-size: 10px; color: #383844;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .file-item:hover .file-relpath { color: #666; }
-  .file-item.active .file-relpath { color: #7a6fa0; }
+  .file-item.active .file-relpath { color: #5a5075; }
 
   .file-size {
-    font-size: 10px; color: #444; flex-shrink: 0;
+    font-size: 10px; color: #353535; flex-shrink: 0;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
   }
 </style>

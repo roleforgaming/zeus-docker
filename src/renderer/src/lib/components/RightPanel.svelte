@@ -58,8 +58,8 @@
   .right-panel {
     width: 320px;
     min-width: 320px;
-    background: #141414;
-    border-left: 1px solid #262626;
+    background: #131313;
+    border-left: 1px solid #222;
     display: flex;
     flex-direction: column;
     transition: width 200ms ease, min-width 200ms ease, opacity 200ms ease;
@@ -74,7 +74,7 @@
 
   .tab-strip {
     display: flex;
-    border-bottom: 1px solid #262626;
+    border-bottom: 1px solid #222;
     flex-shrink: 0;
   }
 
@@ -97,9 +97,9 @@
   }
   .tab-btn:hover { color: #999; background: #1a1a1a; }
   .tab-btn.active {
-    color: #c084fc;
-    border-bottom-color: #c084fc;
-    background: rgba(192, 132, 252, 0.05);
+    color: #b090e0;
+    border-bottom-color: #b090e0;
+    background: rgba(176, 144, 224, 0.05);
   }
 
   .panel-body {
