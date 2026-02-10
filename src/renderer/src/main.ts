@@ -1,11 +1,8 @@
 import App from './App.svelte'
 import { mount } from 'svelte'
 
-// Inject xterm.css from preload-provided path
-const link = document.createElement('link')
-link.rel = 'stylesheet'
-link.href = window.zeus.xtermCssPath
-document.head.appendChild(link)
+// Import xterm CSS through Vite's CSS pipeline (works in both dev and prod)
+import '@xterm/xterm/css/xterm.css'
 
 const app = mount(App, { target: document.getElementById('app')! })
 

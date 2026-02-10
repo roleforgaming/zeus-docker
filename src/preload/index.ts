@@ -9,9 +9,6 @@ let WebLinksAddon: typeof import('@xterm/addon-web-links').WebLinksAddon | null 
 try { WebglAddon = require('@xterm/addon-webgl').WebglAddon } catch {}
 try { WebLinksAddon = require('@xterm/addon-web-links').WebLinksAddon } catch {}
 
-// ── Xterm CSS path for renderer injection ──────────────────────────────────────
-const xtermCssPath = path.join(__dirname, '../../node_modules/@xterm/xterm/css/xterm.css')
-
 // ── Local xterm instances (live in preload's isolated world) ───────────────────
 interface LocalTerminal {
   xterm: Terminal
@@ -19,30 +16,33 @@ interface LocalTerminal {
 }
 const localTerminals = new Map<number, LocalTerminal>()
 
-// ── Terminal Theme ─────────────────────────────────────────────────────────────
+// ── Terminal Theme — Catppuccin Mocha ────────────────────────────────────────
+// https://github.com/catppuccin/catppuccin — the most popular dev terminal palette
 const THEME = {
-  background: '#0d0d0d',
-  foreground: '#e6e6e6',
-  cursor: '#c084fc',
-  cursorAccent: '#0d0d0d',
-  selectionBackground: 'rgba(192, 132, 252, 0.3)',
-  selectionForeground: '#ffffff',
-  black: '#1a1a1a',
-  red: '#f87171',
-  green: '#4ade80',
-  yellow: '#fbbf24',
-  blue: '#60a5fa',
-  magenta: '#c084fc',
-  cyan: '#22d3ee',
-  white: '#e6e6e6',
-  brightBlack: '#666666',
-  brightRed: '#fca5a5',
-  brightGreen: '#86efac',
-  brightYellow: '#fde68a',
-  brightBlue: '#93c5fd',
-  brightMagenta: '#d8b4fe',
-  brightCyan: '#67e8f9',
-  brightWhite: '#ffffff'
+  background: '#1e1e2e',
+  foreground: '#cdd6f4',
+  cursor: '#f5e0dc',
+  cursorAccent: '#1e1e2e',
+  selectionBackground: 'rgba(203, 166, 247, 0.28)',
+  selectionForeground: '#cdd6f4',
+  // Normal colours
+  black: '#45475a',
+  red: '#f38ba8',
+  green: '#a6e3a1',
+  yellow: '#f9e2af',
+  blue: '#89b4fa',
+  magenta: '#cba6f7',
+  cyan: '#94e2d5',
+  white: '#bac2de',
+  // Bright colours
+  brightBlack: '#585b70',
+  brightRed: '#f38ba8',
+  brightGreen: '#a6e3a1',
+  brightYellow: '#f9e2af',
+  brightBlue: '#89b4fa',
+  brightMagenta: '#cba6f7',
+  brightCyan: '#94e2d5',
+  brightWhite: '#a6adc8'
 } as const
 
 // ── Expose typed API ───────────────────────────────────────────────────────────
@@ -189,6 +189,30 @@ contextBridge.exposeInMainWorld('zeus', {
     getDirInfo: (dirPath: string) => ipcRenderer.invoke('system:get-dir-info', dirPath)
   },
 
+  // ── Claude Config / Skills / MCP ──
+  claudeConfig: {
+    read: () => ipcRenderer.invoke('claude-config:read'),
+    write: (config: object) => ipcRenderer.invoke('claude-config:write', config),
+    readProject: (wsPath: string) => ipcRenderer.invoke('claude-config:read-project', wsPath),
+    writeProject: (wsPath: string, config: object) =>
+      ipcRenderer.invoke('claude-config:write-project', wsPath, config)
+  },
+
+  skills: {
+    scan: (wsPath: string) => ipcRenderer.invoke('skills:scan', wsPath)
+  },
+
+  mcp: {
+    install: (pkg: string) => ipcRenderer.invoke('mcp:install', pkg)
+  },
+
+  // ── Files ──
+  files: {
+    listMd: (dirPath: string) => ipcRenderer.invoke('files:list-md', dirPath),
+    read: (filePath: string) => ipcRenderer.invoke('files:read', filePath),
+    write: (filePath: string, content: string) => ipcRenderer.invoke('files:write', filePath, content)
+  },
+
   // ── Menu Actions ──
   onAction: (action: string, callback: () => void) => {
     const handler = () => callback()
@@ -196,5 +220,4 @@ contextBridge.exposeInMainWorld('zeus', {
     return () => ipcRenderer.removeListener(`action:${action}`, handler)
   },
 
-  xtermCssPath
 })

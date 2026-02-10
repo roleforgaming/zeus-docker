@@ -47,6 +47,55 @@ export interface ClaudeUpdateResult {
   error?: string
 }
 
+// ── Skills ─────────────────────────────────────────────────────────────────────
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  category: 'builtin' | 'mcp' | 'custom'
+  enabled: boolean
+  pattern: string // permission pattern e.g. "Bash(*)" or "mcp__server__tool"
+}
+
+export interface CustomSkill {
+  name: string // command name derived from filename (without .md)
+  filename: string // e.g. "refactor.md"
+  filePath: string // absolute path to the .md file
+  scope: 'user' | 'project' // global ~/.claude/commands vs project-level
+  relativeTo: string // workspace root or parent dir where .claude/ was found
+  content: string // first 200 chars for description preview
+}
+
+// ── MCP ────────────────────────────────────────────────────────────────────────
+export interface MCPServer {
+  name: string
+  command: string
+  args: string[]
+  env: Record<string, string>
+  enabled: boolean
+}
+
+export interface ClaudeConfig {
+  mcpServers?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>
+  permissions?: { allow?: string[]; deny?: string[] }
+  [key: string]: unknown
+}
+
+// ── Markdown / Docs ───────────────────────────────────────────────────────────
+export interface MarkdownFile {
+  name: string
+  path: string
+  size: number
+  relativePath: string // relative to workspace root e.g. "docs/guide.md"
+  dir: string // directory relative to workspace root e.g. "docs" or "."
+}
+
+export interface DocTab {
+  id: string // unique tab id (= file path)
+  file: MarkdownFile
+  content: string
+}
+
 // ── Store ──────────────────────────────────────────────────────────────────────
 export interface AppStore {
   workspaces: Workspace[]
@@ -94,8 +143,24 @@ export interface ZeusAPI {
     pathExists(p: string): Promise<boolean>
     getDirInfo(dirPath: string): Promise<DirInfo | null>
   }
+  claudeConfig: {
+    read(): Promise<ClaudeConfig>
+    write(config: ClaudeConfig): Promise<boolean>
+    readProject(wsPath: string): Promise<ClaudeConfig>
+    writeProject(wsPath: string, config: ClaudeConfig): Promise<boolean>
+  }
+  skills: {
+    scan(wsPath: string): Promise<CustomSkill[]>
+  }
+  mcp: {
+    install(pkg: string): Promise<{ success: boolean; output?: string; error?: string }>
+  }
+  files: {
+    listMd(dirPath: string): Promise<MarkdownFile[]>
+    read(filePath: string): Promise<string | null>
+    write(filePath: string, content: string): Promise<boolean>
+  }
   onAction(action: string, callback: () => void): () => void
-  xtermCssPath: string
 }
 
 // Augment window

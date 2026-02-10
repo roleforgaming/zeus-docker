@@ -1,28 +1,33 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, tick } from 'svelte'
   import { workspaceStore } from './lib/stores/workspace.svelte.js'
   import { terminalStore } from './lib/stores/terminal.svelte.js'
   import { claudeStore } from './lib/stores/claude.svelte.js'
   import { ideStore } from './lib/stores/ide.svelte.js'
   import { uiStore } from './lib/stores/ui.svelte.js'
 
+  import { markdownStore } from './lib/stores/markdown.svelte.js'
+
   import Sidebar from './lib/components/Sidebar.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
   import TerminalArea from './lib/components/TerminalArea.svelte'
+  import DocViewer from './lib/components/DocViewer.svelte'
   import WelcomeScreen from './lib/components/WelcomeScreen.svelte'
   import StatusBar from './lib/components/StatusBar.svelte'
+  import RightPanel from './lib/components/RightPanel.svelte'
   import IDEModal from './lib/components/IDEModal.svelte'
   import UpdateModal from './lib/components/UpdateModal.svelte'
   import ContextMenu from './lib/components/ContextMenu.svelte'
   import Toast from './lib/components/Toast.svelte'
 
-  const hasTerminals = $derived(terminalStore.sessions.length > 0)
+  /** Show welcome only when there are no terminals AND no open doc tabs */
+  const hasContent = $derived(
+    terminalStore.sessions.length > 0 || markdownStore.openTabs.length > 0
+  )
 
-  // Unsub array for menu actions
   let unsubs: Array<() => void> = []
 
   onMount(async () => {
-    // Bootstrap stores
     await Promise.all([
       workspaceStore.load(),
       claudeStore.check(),
@@ -30,11 +35,8 @@
     ])
 
     await workspaceStore.restoreLast()
-
-    // Listen for PTY events
     terminalStore.listen()
 
-    // Menu actions from main process
     unsubs.push(
       window.zeus.onAction('new-terminal', () => newTerminal()),
       window.zeus.onAction('run-claude', () => runClaude()),
@@ -49,13 +51,24 @@
 
   // ── Actions ──────────────────────────────────────────────────────────────────
 
+  /** Wait for Svelte DOM flush + one extra animation frame for layout */
+  async function waitForDom(): Promise<void> {
+    await tick()
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+  }
+
   async function newTerminal(wsPath?: string) {
     const cwd = wsPath ?? workspaceStore.active?.path
+    uiStore.activeView = 'terminal'
     const id = await terminalStore.create(cwd)
-    // Wait for Svelte to render the terminal wrapper div
-    await tick()
-    const size = terminalStore.attach(id, `terminal-${id}`)
-    uiStore.termSize = `${size.cols}x${size.rows}`
+    // Svelte must render <div id="terminal-{id}"> before we attach xterm
+    await waitForDom()
+    try {
+      const size = terminalStore.attach(id, `terminal-${id}`)
+      uiStore.termSize = `${size.cols}x${size.rows}`
+    } catch (e) {
+      console.error('[zeus] Failed to attach terminal:', e)
+    }
   }
 
   async function runClaude(wsPath?: string) {
@@ -74,11 +87,16 @@
   }
 
   async function launchClaudeInWorkspace(cwd: string) {
+    uiStore.activeView = 'terminal'
     const id = await terminalStore.create(cwd, true)
-    await tick()
-    const size = terminalStore.attach(id, `terminal-${id}`)
-    uiStore.termSize = `${size.cols}x${size.rows}`
-    setTimeout(() => terminalStore.writeToPty(id, 'claude\n'), 600)
+    await waitForDom()
+    try {
+      const size = terminalStore.attach(id, `terminal-${id}`)
+      uiStore.termSize = `${size.cols}x${size.rows}`
+      setTimeout(() => terminalStore.writeToPty(id, 'claude\n'), 600)
+    } catch (e) {
+      console.error('[zeus] Failed to attach terminal:', e)
+    }
   }
 
   function openIDE() {
@@ -95,6 +113,11 @@
     } else {
       uiStore.showToast('No workspace selected', 'error')
     }
+  }
+
+  function toggleRightPanel() {
+    uiStore.toggleRightPanel()
+    terminalStore.fitActiveDebounced(250)
   }
 
   function handleContextAction(action: string, wsPath: string) {
@@ -118,28 +141,32 @@
     }
   }
 
-  // Keyboard shortcuts
   function handleKeydown(e: KeyboardEvent) {
     const meta = e.metaKey || e.ctrlKey
-    if (meta && e.key === 'b') { e.preventDefault(); uiStore.toggleSidebar(); terminalStore.fitActiveDebounced(250) }
-    if (meta && e.key === 'k') { e.preventDefault(); terminalStore.clearActive() }
-    if (e.key === 'Escape') { uiStore.ideModalOpen = false; uiStore.updateModalOpen = false; uiStore.closeContextMenu() }
+    if (meta && e.key === 'b') {
+      e.preventDefault(); uiStore.toggleSidebar(); terminalStore.fitActiveDebounced(250)
+    }
+    if (meta && e.key === 'i') {
+      e.preventDefault(); toggleRightPanel()
+    }
+    if (meta && e.key === 'k') {
+      e.preventDefault(); terminalStore.clearActive()
+    }
+    if (e.key === 'Escape') {
+      uiStore.ideModalOpen = false
+      uiStore.updateModalOpen = false
+      uiStore.closeContextMenu()
+    }
   }
 
-  // Svelte 5 doesn't have `tick` in runes mode from $app — use microtask
-  function tick(): Promise<void> {
-    return new Promise((resolve) => requestAnimationFrame(() => resolve()))
-  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Title bar (macOS traffic light drag region) -->
 <div class="titlebar">
   <span class="titlebar-text">Zeus</span>
 </div>
 
-<!-- Main layout -->
 <div class="app">
   <Sidebar onupdate={() => (uiStore.updateModalOpen = true)} />
 
@@ -149,23 +176,28 @@
       onnewTerminal={() => newTerminal()}
       onopenIDE={openIDE}
       onreveal={revealInFinder}
+      ontogglePanel={toggleRightPanel}
     />
 
     <div class="terminal-region">
-      {#if !hasTerminals}
+      {#if !hasContent}
         <WelcomeScreen
           onaddWorkspace={() => workspaceStore.add()}
           onrunClaude={() => runClaude()}
         />
       {/if}
       <TerminalArea />
+      {#if uiStore.activeView === 'doc'}
+        <DocViewer />
+      {/if}
     </div>
 
     <StatusBar />
   </main>
+
+  <RightPanel />
 </div>
 
-<!-- Overlays -->
 <IDEModal />
 <UpdateModal />
 <ContextMenu onaction={handleContextAction} />
@@ -223,5 +255,7 @@
     flex: 1;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 </style>

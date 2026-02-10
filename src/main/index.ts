@@ -161,7 +161,12 @@ function createTerminal(workspacePath?: string): { id: number; cwd: string } {
   const cwd =
     workspacePath && fs.existsSync(workspacePath) ? workspacePath : os.homedir()
 
-  const ptyProcess = pty.spawn(getShell(), [], {
+  const shell = getShell()
+
+  // Spawn as login shell so .zshrc / .bash_profile are sourced (colors, aliases, PATH)
+  const shellArgs: string[] = process.platform === 'win32' ? [] : ['--login']
+
+  const ptyProcess = pty.spawn(shell, shellArgs, {
     name: 'xterm-256color',
     cols: 120,
     rows: 30,
@@ -169,7 +174,9 @@ function createTerminal(workspacePath?: string): { id: number; cwd: string } {
     env: {
       ...process.env,
       TERM: 'xterm-256color',
-      COLORTERM: 'truecolor'
+      COLORTERM: 'truecolor',
+      TERM_PROGRAM: 'Zeus',
+      LANG: process.env.LANG || 'en_US.UTF-8'
     }
   })
 
@@ -419,6 +426,267 @@ function registerIPC(): void {
       return null
     }
   })
+
+  // ── Claude Config / Skills / MCP ──
+
+  ipcMain.handle('claude-config:read', () => readClaudeConfig())
+  ipcMain.handle('claude-config:write', (_, config: object) => writeClaudeConfig(config))
+  ipcMain.handle('claude-config:read-project', (_, wsPath: string) => readProjectClaudeConfig(wsPath))
+  ipcMain.handle('claude-config:write-project', (_, wsPath: string, config: object) =>
+    writeProjectClaudeConfig(wsPath, config)
+  )
+
+  // MCP
+  ipcMain.handle('mcp:install', (_, pkg: string) => installMCPPackage(pkg))
+
+  // Skills — scan .claude/commands/ recursively
+  ipcMain.handle('skills:scan', (_, wsPath: string) => scanCustomSkills(wsPath))
+
+  // Files / Markdown
+  ipcMain.handle('files:list-md', (_, dirPath: string) => listMarkdownFiles(dirPath))
+  ipcMain.handle('files:read', (_, filePath: string) => readFileContent(filePath))
+  ipcMain.handle('files:write', (_, filePath: string, content: string) => writeFileContent(filePath, content))
+}
+
+// ── Claude Config Helpers ──────────────────────────────────────────────────────
+
+function getClaudeConfigPath(): string {
+  return path.join(os.homedir(), '.claude.json')
+}
+
+function readClaudeConfig(): object {
+  try {
+    const p = getClaudeConfigPath()
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'))
+    }
+  } catch { /* ignore */ }
+  return {}
+}
+
+function writeClaudeConfig(config: object): boolean {
+  try {
+    fs.writeFileSync(getClaudeConfigPath(), JSON.stringify(config, null, 2), 'utf-8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+function readProjectClaudeConfig(wsPath: string): object {
+  try {
+    const p = path.join(wsPath, '.claude', 'settings.json')
+    if (fs.existsSync(p)) {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'))
+    }
+  } catch { /* ignore */ }
+  return {}
+}
+
+function writeProjectClaudeConfig(wsPath: string, config: object): boolean {
+  try {
+    const dir = path.join(wsPath, '.claude')
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, 'settings.json'), JSON.stringify(config, null, 2), 'utf-8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+function installMCPPackage(pkg: string): Promise<{ success: boolean; output?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const child = spawn('npm', ['install', '-g', pkg], { shell: true, env: { ...process.env } })
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.on('close', (code) => {
+      if (code === 0) resolve({ success: true, output: stdout })
+      else resolve({ success: false, error: stderr || `Exit code ${code}` })
+    })
+    child.on('error', (err) => resolve({ success: false, error: err.message }))
+  })
+}
+
+// ── Custom Skills Scanner ─────────────────────────────────────────────────────
+
+interface CustomSkillEntry {
+  name: string // command name derived from filename (without .md)
+  filename: string // e.g. "refactor.md"
+  filePath: string // absolute path to the .md file
+  scope: 'user' | 'project' // global ~/.claude/commands vs project .claude/commands
+  relativeTo: string // workspace root or parent dir where .claude/ was found
+  content: string // first 200 chars for description preview
+}
+
+/**
+ * Scan for custom slash commands (.md files in .claude/commands/) from:
+ * 1. Global: ~/.claude/commands/
+ * 2. Project root: <wsPath>/.claude/commands/
+ * 3. Child directories (depth-limited): <wsPath>/<child>/.claude/commands/
+ */
+function scanCustomSkills(wsPath: string): CustomSkillEntry[] {
+  const results: CustomSkillEntry[] = []
+
+  // 1. Global user commands (always)
+  const globalCmdsDir = path.join(os.homedir(), '.claude', 'commands')
+  collectCommandFiles(globalCmdsDir, 'user', os.homedir(), results)
+
+  // 2 & 3: Only if workspace path is provided
+  if (wsPath && fs.existsSync(wsPath)) {
+    // 2. Project root
+    const projectCmdsDir = path.join(wsPath, '.claude', 'commands')
+    collectCommandFiles(projectCmdsDir, 'project', wsPath, results)
+
+    // 3. Recurse into child directories (depth-limited)
+    scanChildrenForCommands(wsPath, results, 0)
+  }
+
+  return results
+}
+
+function collectCommandFiles(
+  cmdsDir: string,
+  scope: 'user' | 'project',
+  relativeTo: string,
+  results: CustomSkillEntry[]
+): void {
+  try {
+    if (!fs.existsSync(cmdsDir) || !fs.statSync(cmdsDir).isDirectory()) return
+    const entries = fs.readdirSync(cmdsDir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isFile()) continue
+      if (!/\.md$/i.test(entry.name)) continue
+      const filePath = path.join(cmdsDir, entry.name)
+      // Avoid duplicates
+      if (results.some((r) => r.filePath === filePath)) continue
+      try {
+        const raw = fs.readFileSync(filePath, 'utf-8')
+        const name = entry.name.replace(/\.md$/i, '')
+        results.push({
+          name,
+          filename: entry.name,
+          filePath,
+          scope,
+          relativeTo,
+          content: raw.slice(0, 200)
+        })
+      } catch { /* unreadable file */ }
+    }
+  } catch { /* directory access error */ }
+}
+
+/**
+ * Recursively scan child directories for .claude/commands/ folders.
+ * depth=0 means direct children of wsPath.
+ * Limited to depth 3 and skips common heavy dirs.
+ */
+function scanChildrenForCommands(
+  dir: string,
+  results: CustomSkillEntry[],
+  depth: number
+): void {
+  if (depth > 3) return
+  const SKIP_DIRS = new Set([
+    'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out',
+    '.next', '.nuxt', '.output', '__pycache__', 'venv', '.venv',
+    'target', 'vendor', '.idea', '.vscode', 'coverage'
+  ])
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      if (entry.name.startsWith('.') && entry.name !== '.claude') continue
+      if (SKIP_DIRS.has(entry.name)) continue
+
+      const childPath = path.join(dir, entry.name)
+
+      // Check if this child has .claude/commands/
+      const cmdsDir = path.join(childPath, '.claude', 'commands')
+      if (fs.existsSync(cmdsDir)) {
+        collectCommandFiles(cmdsDir, 'project', childPath, results)
+      }
+
+      // Recurse deeper
+      scanChildrenForCommands(childPath, results, depth + 1)
+    }
+  } catch { /* permission error */ }
+}
+
+// ── File Helpers ───────────────────────────────────────────────────────────────
+
+interface MdFileEntry {
+  name: string
+  path: string
+  size: number
+  relativePath: string
+  dir: string
+}
+
+function listMarkdownFiles(dirPath: string): MdFileEntry[] {
+  const results: MdFileEntry[] = []
+  try {
+    collectMdFiles(dirPath, dirPath, results, 0)
+  } catch { /* ignore */ }
+  // Sort by directory first, then by name
+  return results.sort((a, b) => {
+    if (a.dir !== b.dir) return a.dir.localeCompare(b.dir)
+    return a.name.localeCompare(b.name)
+  })
+}
+
+const MD_SKIP_DIRS = new Set([
+  'node_modules', '.git', '.hg', '.svn', 'dist', 'build', 'out',
+  '.next', '.nuxt', '.output', '__pycache__', 'venv', '.venv',
+  'target', 'vendor', 'coverage', '.cache', '.turbo'
+])
+
+function collectMdFiles(
+  rootDir: string,
+  dir: string,
+  results: MdFileEntry[],
+  depth: number
+): void {
+  if (depth > 5) return // generous depth for docs
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.name.startsWith('.') || MD_SKIP_DIRS.has(entry.name)) continue
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isFile() && /\.md$/i.test(entry.name)) {
+        const stat = fs.statSync(fullPath)
+        const relativePath = path.relative(rootDir, fullPath)
+        const relDir = path.relative(rootDir, dir) || '.'
+        results.push({
+          name: entry.name,
+          path: fullPath,
+          size: stat.size,
+          relativePath,
+          dir: relDir
+        })
+      } else if (entry.isDirectory()) {
+        collectMdFiles(rootDir, fullPath, results, depth + 1)
+      }
+    }
+  } catch { /* permission error, etc. */ }
+}
+
+function readFileContent(filePath: string): string | null {
+  try {
+    return fs.readFileSync(filePath, 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+function writeFileContent(filePath: string, content: string): boolean {
+  try {
+    fs.writeFileSync(filePath, content, 'utf-8')
+    return true
+  } catch {
+    return false
+  }
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────

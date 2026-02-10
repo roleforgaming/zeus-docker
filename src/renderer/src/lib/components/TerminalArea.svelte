@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { terminalStore } from '../stores/terminal.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
 
@@ -8,27 +8,33 @@
   // Resize observer — refit terminal when container size changes
   onMount(() => {
     const observer = new ResizeObserver(() => {
-      terminalStore.fitActiveDebounced(50)
+      if (uiStore.activeView === 'terminal') {
+        terminalStore.fitActiveDebounced(50)
+      }
     })
     observer.observe(containerEl)
     return () => observer.disconnect()
   })
 
-  // When activeId changes, fit and focus after DOM update
+  // When activeId changes or view switches to terminal, fit and focus
   $effect(() => {
     const id = terminalStore.activeId
-    if (id !== null) {
-      // Wait a tick for DOM to update visibility
-      requestAnimationFrame(() => {
-        const size = terminalStore.fitActive()
-        terminalStore.focusActive()
-        if (size) uiStore.termSize = `${size.cols}x${size.rows}`
+    const view = uiStore.activeView
+    if (id !== null && view === 'terminal') {
+      tick().then(() => {
+        requestAnimationFrame(() => {
+          try {
+            const size = terminalStore.fitActive()
+            terminalStore.focusActive()
+            if (size) uiStore.termSize = `${size.cols}x${size.rows}`
+          } catch { /* terminal may not be attached yet */ }
+        })
       })
     }
   })
 </script>
 
-<div class="terminal-area" bind:this={containerEl}>
+<div class="terminal-area" class:hidden={uiStore.activeView !== 'terminal'} bind:this={containerEl}>
   {#each terminalStore.sessions as session (session.id)}
     <div
       class="terminal-wrapper"
@@ -41,9 +47,14 @@
 <style>
   .terminal-area {
     flex: 1;
+    width: 100%;
+    height: 100%;
     position: relative;
     overflow: hidden;
-    background: #0d0d0d;
+    background: #1e1e2e;
+  }
+  .terminal-area.hidden {
+    display: none;
   }
   .terminal-wrapper {
     position: absolute;

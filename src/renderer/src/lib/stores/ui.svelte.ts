@@ -6,12 +6,18 @@ export interface Toast {
   id: number
 }
 
+export type ActiveViewType = 'terminal' | 'doc'
+
 class UIStore {
   sidebarCollapsed = $state(false)
+  rightPanelOpen = $state(false)
   ideModalOpen = $state(false)
   updateModalOpen = $state(false)
   toasts = $state<Toast[]>([])
   termSize = $state('')
+
+  /** Which kind of tab is showing in the main content area */
+  activeView = $state<ActiveViewType>('terminal')
 
   // Context menu
   contextMenuOpen = $state(false)
@@ -23,6 +29,10 @@ class UIStore {
 
   toggleSidebar() {
     this.sidebarCollapsed = !this.sidebarCollapsed
+  }
+
+  toggleRightPanel() {
+    this.rightPanelOpen = !this.rightPanelOpen
   }
 
   showToast(message: string, type: Toast['type'] = 'info') {

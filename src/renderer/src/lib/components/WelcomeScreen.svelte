@@ -30,6 +30,7 @@
       <div class="shortcut"><kbd>Cmd+T</kbd> New terminal</div>
       <div class="shortcut"><kbd>Cmd+Shift+C</kbd> Run Claude Code</div>
       <div class="shortcut"><kbd>Cmd+B</kbd> Toggle sidebar</div>
+      <div class="shortcut"><kbd>Cmd+I</kbd> Skills / MCP / Docs</div>
       <div class="shortcut"><kbd>Cmd+K</kbd> Clear terminal</div>
     </div>
   </div>

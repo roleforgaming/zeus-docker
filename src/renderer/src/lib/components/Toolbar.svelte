@@ -7,12 +7,14 @@
   import IconPlus from './icons/IconPlus.svelte'
   import IconCode from './icons/IconCode.svelte'
   import IconFolder from './icons/IconFolder.svelte'
+  import IconPanelRight from './icons/IconPanelRight.svelte'
 
-  let { onrunClaude, onnewTerminal, onopenIDE, onreveal }: {
+  let { onrunClaude, onnewTerminal, onopenIDE, onreveal, ontogglePanel }: {
     onrunClaude: () => void
     onnewTerminal: () => void
     onopenIDE: () => void
     onreveal: () => void
+    ontogglePanel: () => void
   } = $props()
 
   const breadcrumb = $derived(
@@ -49,6 +51,10 @@
     </button>
     <button class="icon-btn" title="Reveal in Finder" onclick={onreveal}>
       <IconFolder size={16} />
+    </button>
+    <div class="divider"></div>
+    <button class="icon-btn" title="Toggle panel (Cmd+I)" onclick={ontogglePanel}>
+      <IconPanelRight size={16} />
     </button>
   </div>
 </div>

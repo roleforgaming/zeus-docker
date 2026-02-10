@@ -1,14 +1,39 @@
 <script lang="ts">
   import { terminalStore } from '../stores/terminal.svelte.js'
+  import { markdownStore } from '../stores/markdown.svelte.js'
+  import { uiStore } from '../stores/ui.svelte.js'
   import IconBolt from './icons/IconBolt.svelte'
   import IconTerminal from './icons/IconTerminal.svelte'
+
+  function switchToTerminal(id: number) {
+    terminalStore.switchTo(id)
+    uiStore.activeView = 'terminal'
+  }
+
+  function switchToDoc(id: string) {
+    markdownStore.switchTo(id)
+  }
+
+  function closeDoc(e: MouseEvent, id: string) {
+    e.stopPropagation()
+    markdownStore.close(id)
+  }
+
+  function closeTerminal(e: MouseEvent, id: number) {
+    e.stopPropagation()
+    terminalStore.close(id)
+  }
 </script>
 
 <div class="tab-bar">
+  <!-- Terminal tabs -->
   {#each terminalStore.sessions as session (session.id)}
-    <div class="tab" class:active={session.id === terminalStore.activeId}>
+    <div
+      class="tab"
+      class:active={uiStore.activeView === 'terminal' && session.id === terminalStore.activeId}
+    >
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
-      <div class="tab-body" onclick={() => terminalStore.switchTo(session.id)}>
+      <div class="tab-body" onclick={() => switchToTerminal(session.id)}>
         <span class="tab-icon" class:claude={session.isClaude}>
           {#if session.isClaude}
             <IconBolt size={14} />
@@ -20,7 +45,32 @@
       </div>
       <button
         class="tab-close"
-        onclick={(e) => { e.stopPropagation(); terminalStore.close(session.id) }}
+        onclick={(e) => closeTerminal(e, session.id)}
+      >&times;</button>
+    </div>
+  {/each}
+
+  <!-- Separator if both types exist -->
+  {#if terminalStore.sessions.length > 0 && markdownStore.openTabs.length > 0}
+    <div class="tab-sep"></div>
+  {/if}
+
+  <!-- Doc tabs -->
+  {#each markdownStore.openTabs as tab (tab.id)}
+    <div
+      class="tab doc-tab"
+      class:active={uiStore.activeView === 'doc' && tab.id === markdownStore.activeDocId}
+    >
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+      <div class="tab-body" onclick={() => switchToDoc(tab.id)}>
+        <span class="tab-icon doc">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </span>
+        <span class="tab-title">{tab.file.name}</span>
+      </div>
+      <button
+        class="tab-close"
+        onclick={(e) => closeDoc(e, tab.id)}
       >&times;</button>
     </div>
   {/each}
@@ -62,8 +112,9 @@
 
   .tab-icon { display: flex; align-items: center; }
   .tab-icon.claude { color: #c084fc; }
+  .tab-icon.doc { color: #60a5fa; }
 
-  .tab-title { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+  .tab-title { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 
   .tab-close {
     display: flex;
@@ -81,4 +132,8 @@
     padding: 0;
   }
   .tab-close:hover { background: #2a2a2a; color: #e6e6e6; }
+
+  .tab-sep {
+    width: 1px; height: 16px; background: #333; margin: 0 4px; flex-shrink: 0;
+  }
 </style>
