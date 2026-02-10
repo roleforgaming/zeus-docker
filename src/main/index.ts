@@ -41,6 +41,12 @@ interface TermEntry {
   workspace: string
 }
 
+interface ClaudeSessionEntry {
+  process: ReturnType<typeof spawn> | null
+  sessionId: string | null
+  cwd: string
+}
+
 // ── State ──────────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null
@@ -48,6 +54,9 @@ let pty: typeof PtyModule
 const terminals = new Map<number, TermEntry>()
 let nextTermId = 1
 let store: AppStore
+
+// ── Claude Sessions (headless -p mode) ────────────────────────────────────────
+const claudeSessions = new Map<string, ClaudeSessionEntry>()
 
 // ── Paths ──────────────────────────────────────────────────────────────────────
 
@@ -463,6 +472,22 @@ function registerIPC(): void {
   ipcMain.handle('files:list-md', (_, dirPath: string) => listMarkdownFiles(dirPath))
   ipcMain.handle('files:read', (_, filePath: string) => readFileContent(filePath))
   ipcMain.handle('files:write', (_, filePath: string, content: string) => writeFileContent(filePath, content))
+
+  // ── Claude Session (headless -p mode with stream-json) ──
+  ipcMain.handle(
+    'claude-session:send',
+    (_, conversationId: string, prompt: string, cwd: string) => {
+      return spawnClaudeSession(conversationId, prompt, cwd)
+    }
+  )
+
+  ipcMain.handle('claude-session:abort', (_, conversationId: string) => {
+    const session = claudeSessions.get(conversationId)
+    if (session?.process) {
+      session.process.kill('SIGINT')
+    }
+    return true
+  })
 }
 
 // ── Claude Config Helpers ──────────────────────────────────────────────────────
@@ -706,6 +731,142 @@ function writeFileContent(filePath: string, content: string): boolean {
   }
 }
 
+// ── Claude Session (headless mode) ────────────────────────────────────────────
+
+function getClaudeCliPath(): string {
+  // Attempt to find claude in common locations
+  try {
+    const whichCmd = process.platform === 'win32' ? 'where claude' : 'which claude'
+    return execSync(whichCmd, { encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim()
+  } catch {
+    return 'claude'
+  }
+}
+
+function spawnClaudeSession(conversationId: string, prompt: string, cwd: string): boolean {
+  // Get or create session state
+  let session = claudeSessions.get(conversationId)
+  if (!session) {
+    session = { process: null, sessionId: null, cwd }
+    claudeSessions.set(conversationId, session)
+  }
+
+  // Kill any still-running process for this conversation
+  if (session.process) {
+    try { session.process.kill('SIGINT') } catch { /* ignore */ }
+    session.process = null
+  }
+
+  // Build args: claude -p "prompt" --output-format stream-json [--resume sessionId]
+  const claudePath = getClaudeCliPath()
+  const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose']
+
+  if (session.sessionId) {
+    args.push('--resume', session.sessionId)
+  }
+
+  const effectiveCwd = cwd && fs.existsSync(cwd) ? cwd : os.homedir()
+
+  // Spawn claude process
+  const child = spawn(claudePath, args, {
+    cwd: effectiveCwd,
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      LANG: process.env.LANG || 'en_US.UTF-8'
+    },
+    stdio: ['pipe', 'pipe', 'pipe']
+  })
+
+  session.process = child
+
+  let buffer = ''
+
+  child.stdout?.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString()
+    const lines = buffer.split('\n')
+    buffer = lines.pop()! // keep incomplete last line
+
+    for (const line of lines) {
+      if (!line.trim()) continue
+      try {
+        const event = JSON.parse(line)
+        // Extract session_id from events
+        if (event.sessionId || event.session_id) {
+          session!.sessionId = event.sessionId || event.session_id
+        }
+        mainWindow?.webContents.send('claude-session:event', {
+          id: conversationId,
+          event
+        })
+      } catch {
+        // Non-JSON line — send as raw text event
+        mainWindow?.webContents.send('claude-session:event', {
+          id: conversationId,
+          event: { type: 'raw', text: line }
+        })
+      }
+    }
+  })
+
+  child.stderr?.on('data', (chunk: Buffer) => {
+    const text = chunk.toString()
+    // stderr can contain progress/debug info — forward as stderr event
+    mainWindow?.webContents.send('claude-session:event', {
+      id: conversationId,
+      event: { type: 'stderr', text }
+    })
+  })
+
+  child.on('close', (code) => {
+    // Process remaining buffer
+    if (buffer.trim()) {
+      try {
+        const event = JSON.parse(buffer)
+        if (event.sessionId || event.session_id) {
+          session!.sessionId = event.sessionId || event.session_id
+        }
+        mainWindow?.webContents.send('claude-session:event', {
+          id: conversationId,
+          event
+        })
+      } catch { /* ignore trailing junk */ }
+    }
+
+    session!.process = null
+
+    mainWindow?.webContents.send('claude-session:done', {
+      id: conversationId,
+      exitCode: code ?? 0,
+      sessionId: session!.sessionId
+    })
+  })
+
+  child.on('error', (err) => {
+    mainWindow?.webContents.send('claude-session:event', {
+      id: conversationId,
+      event: { type: 'error', text: err.message }
+    })
+    session!.process = null
+    mainWindow?.webContents.send('claude-session:done', {
+      id: conversationId,
+      exitCode: 1,
+      sessionId: session!.sessionId
+    })
+  })
+
+  return true
+}
+
+function killAllClaudeSessions(): void {
+  for (const [, s] of claudeSessions) {
+    if (s.process) {
+      try { s.process.kill('SIGINT') } catch { /* ignore */ }
+    }
+  }
+  claudeSessions.clear()
+}
+
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 
 function killAllTerminals(): void {
@@ -713,6 +874,7 @@ function killAllTerminals(): void {
     try { t.pty.kill() } catch { /* ignore */ }
   }
   terminals.clear()
+  killAllClaudeSessions()
 }
 
 app.whenReady().then(() => {

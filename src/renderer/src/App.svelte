@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte'
   import { workspaceStore } from './lib/stores/workspace.svelte.js'
   import { terminalStore } from './lib/stores/terminal.svelte.js'
+  import { claudeSessionStore } from './lib/stores/claude-session.svelte.js'
   import { claudeStore } from './lib/stores/claude.svelte.js'
   import { ideStore } from './lib/stores/ide.svelte.js'
   import { uiStore } from './lib/stores/ui.svelte.js'
@@ -11,6 +12,7 @@
   import Sidebar from './lib/components/Sidebar.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
   import TerminalArea from './lib/components/TerminalArea.svelte'
+  import ConversationView from './lib/components/ConversationView.svelte'
   import DocViewer from './lib/components/DocViewer.svelte'
   import WelcomeScreen from './lib/components/WelcomeScreen.svelte'
   import StatusBar from './lib/components/StatusBar.svelte'
@@ -20,9 +22,11 @@
   import ContextMenu from './lib/components/ContextMenu.svelte'
   import Toast from './lib/components/Toast.svelte'
 
-  /** Show welcome only when there are no terminals AND no open doc tabs */
+  /** Show welcome only when nothing is open */
   const hasContent = $derived(
-    terminalStore.sessions.length > 0 || markdownStore.openTabs.length > 0
+    terminalStore.sessions.length > 0 ||
+    claudeSessionStore.conversations.length > 0 ||
+    markdownStore.openTabs.length > 0
   )
 
   let unsubs: Array<() => void> = []
@@ -36,6 +40,7 @@
 
     await workspaceStore.restoreLast()
     terminalStore.listen()
+    claudeSessionStore.listen()
 
     unsubs.push(
       window.zeus.onAction('new-terminal', () => newTerminal()),
@@ -46,6 +51,7 @@
 
   onDestroy(() => {
     terminalStore.unlisten()
+    claudeSessionStore.unlisten()
     unsubs.forEach((fn) => fn())
   })
 
@@ -80,24 +86,15 @@
     if (!cwd) {
       const ws = await workspaceStore.add()
       if (!ws) return
-      await launchClaudeInWorkspace(ws.path)
+      launchClaudeConversation(ws.path)
       return
     }
-    await launchClaudeInWorkspace(cwd)
+    launchClaudeConversation(cwd)
   }
 
-  async function launchClaudeInWorkspace(cwd: string) {
-    uiStore.activeView = 'terminal'
-    const id = await terminalStore.create(cwd, true)
-    await waitForDom()
-    try {
-      const size = terminalStore.attach(id, `terminal-${id}`)
-      uiStore.termSize = `${size.cols}x${size.rows}`
-      // Launch claude command after shell is ready
-      setTimeout(() => terminalStore.sendInput(id, 'claude'), 600)
-    } catch (e) {
-      console.error('[zeus] Failed to attach terminal:', e)
-    }
+  function launchClaudeConversation(cwd: string) {
+    // Use headless mode: clean conversation UI with stream-json output
+    claudeSessionStore.create(cwd)
   }
 
   function openIDE() {
@@ -153,6 +150,16 @@
     if (meta && e.key === 'k') {
       e.preventDefault(); terminalStore.clearActive()
     }
+    if (meta && e.key === 'w') {
+      e.preventDefault()
+      if (uiStore.activeView === 'terminal' && terminalStore.activeId !== null) {
+        terminalStore.close(terminalStore.activeId)
+      } else if (uiStore.activeView === 'claude' && claudeSessionStore.activeId) {
+        claudeSessionStore.close(claudeSessionStore.activeId)
+      } else if (uiStore.activeView === 'doc' && markdownStore.activeDocId) {
+        markdownStore.close(markdownStore.activeDocId)
+      }
+    }
     if (e.key === 'Escape') {
       uiStore.ideModalOpen = false
       uiStore.updateModalOpen = false
@@ -188,6 +195,7 @@
         />
       {/if}
       <TerminalArea />
+      <ConversationView />
       {#if uiStore.activeView === 'doc'}
         <DocViewer />
       {/if}

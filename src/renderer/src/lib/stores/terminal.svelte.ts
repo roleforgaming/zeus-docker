@@ -34,13 +34,13 @@ class TerminalStore {
   }
 
   /** Create a new terminal tab. */
-  async create(workspacePath?: string, isClaude = false): Promise<number> {
+  async create(workspacePath?: string): Promise<number> {
     const { id } = await window.zeus.terminal.create(workspacePath)
 
     const session: TerminalSession = {
       id,
-      isClaude,
-      title: isClaude ? 'Claude Code' : `Terminal ${id}`,
+      isClaude: false,
+      title: `Terminal ${id}`,
       workspacePath,
       history: [],
       historyIndex: -1
@@ -87,8 +87,10 @@ class TerminalStore {
       }
       session.historyIndex = -1
     }
-    // Send to PTY
-    window.zeus.terminal.writeToPty(id, text + '\n')
+    // Send to PTY — use \r (CR) not \n (LF).
+    // Terminal apps in raw mode (like Claude Code / Ink) expect \r for Enter.
+    // Shells in canonical mode have ICRNL which converts \r→\n, so \r works everywhere.
+    window.zeus.terminal.writeToPty(id, text + '\r')
   }
 
   /** Send raw data to PTY (e.g. Ctrl+C = '\x03'). */

@@ -1,31 +1,53 @@
 <script lang="ts">
   import { terminalStore } from '../stores/terminal.svelte.js'
+  import { claudeSessionStore } from '../stores/claude-session.svelte.js'
   import { workspaceStore } from '../stores/workspace.svelte.js'
+  import { uiStore } from '../stores/ui.svelte.js'
   import IconBolt from './icons/IconBolt.svelte'
   import IconTerminal from './icons/IconTerminal.svelte'
 
   let inputEl: HTMLTextAreaElement
   let inputValue = $state('')
 
-  const session = $derived(terminalStore.activeSession)
-  const isClaude = $derived(session?.isClaude ?? false)
+  /** Determine which mode we're in based on active view */
+  const isClaudeMode = $derived(uiStore.activeView === 'claude')
+  const terminalSession = $derived(terminalStore.activeSession)
+  const claudeConv = $derived(claudeSessionStore.activeConversation)
 
-  /** Focus input when session changes */
+  /** Something is active (either terminal or claude conversation) */
+  const hasActiveTarget = $derived(
+    isClaudeMode ? !!claudeConv : !!terminalSession
+  )
+
+  /** Whether claude is currently streaming (disable input) */
+  const isStreaming = $derived(claudeConv?.isStreaming ?? false)
+
+  /** Focus input when active session changes */
   $effect(() => {
-    if (session && inputEl) {
+    const _ = isClaudeMode ? claudeConv?.id : terminalSession?.id
+    void _
+    if (hasActiveTarget && inputEl) {
       requestAnimationFrame(() => inputEl?.focus())
     }
   })
 
   function send() {
-    if (!session || !inputValue.trim()) return
-    terminalStore.sendInput(session.id, inputValue)
-    inputValue = ''
-    resetHeight()
+    if (!inputValue.trim()) return
+
+    if (isClaudeMode && claudeConv) {
+      if (isStreaming) return // don't send while streaming
+      claudeSessionStore.send(claudeConv.id, inputValue)
+      inputValue = ''
+      resetHeight()
+    } else if (terminalSession) {
+      terminalStore.sendInput(terminalSession.id, inputValue)
+      inputValue = ''
+      resetHeight()
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (!session) return
+    if (!hasActiveTarget) return
 
     // Enter = send (Shift+Enter = new line)
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -34,58 +56,58 @@
       return
     }
 
-    // Ctrl+C = send interrupt
+    // Ctrl+C = interrupt (abort for claude, SIGINT for terminal)
     if (e.key === 'c' && e.ctrlKey) {
       e.preventDefault()
-      terminalStore.sendRaw(session.id, '\x03')
+      if (isClaudeMode && claudeConv) {
+        claudeSessionStore.abort(claudeConv.id)
+      } else if (terminalSession) {
+        terminalStore.sendRaw(terminalSession.id, '\x03')
+      }
       inputValue = ''
       resetHeight()
       return
     }
 
-    // Ctrl+D = send EOF
-    if (e.key === 'd' && e.ctrlKey) {
+    // Ctrl+D = send EOF (terminal only)
+    if (e.key === 'd' && e.ctrlKey && !isClaudeMode && terminalSession) {
       e.preventDefault()
-      terminalStore.sendRaw(session.id, '\x04')
+      terminalStore.sendRaw(terminalSession.id, '\x04')
       return
     }
 
-    // Arrow Up = history previous
-    if (e.key === 'ArrowUp' && !e.shiftKey) {
-      const prev = terminalStore.historyUp(session.id)
-      if (prev !== null) {
-        e.preventDefault()
-        inputValue = prev
-        // Move cursor to end
-        requestAnimationFrame(() => {
-          if (inputEl) {
-            inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length
-          }
-        })
+    // Arrow Up/Down = history (terminal only)
+    if (!isClaudeMode && terminalSession) {
+      if (e.key === 'ArrowUp' && !e.shiftKey) {
+        const prev = terminalStore.historyUp(terminalSession.id)
+        if (prev !== null) {
+          e.preventDefault()
+          inputValue = prev
+          requestAnimationFrame(() => {
+            if (inputEl) inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length
+          })
+        }
+        return
       }
-      return
-    }
 
-    // Arrow Down = history next
-    if (e.key === 'ArrowDown' && !e.shiftKey) {
-      const next = terminalStore.historyDown(session.id)
-      if (next !== null) {
-        e.preventDefault()
-        inputValue = next
-        requestAnimationFrame(() => {
-          if (inputEl) {
-            inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length
-          }
-        })
+      if (e.key === 'ArrowDown' && !e.shiftKey) {
+        const next = terminalStore.historyDown(terminalSession.id)
+        if (next !== null) {
+          e.preventDefault()
+          inputValue = next
+          requestAnimationFrame(() => {
+            if (inputEl) inputEl.selectionStart = inputEl.selectionEnd = inputEl.value.length
+          })
+        }
+        return
       }
-      return
-    }
 
-    // Tab = send tab character
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      terminalStore.sendRaw(session.id, '\t')
-      return
+      // Tab = send tab character (terminal only)
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        terminalStore.sendRaw(terminalSession.id, '\t')
+        return
+      }
     }
   }
 
@@ -108,11 +130,11 @@
   }
 </script>
 
-<div class="input-bar" class:claude={isClaude}>
+<div class="input-bar" class:claude={isClaudeMode}>
   <div class="input-row">
     <!-- Mode indicator -->
-    <div class="mode-icon" class:claude={isClaude}>
-      {#if isClaude}
+    <div class="mode-icon" class:claude={isClaudeMode}>
+      {#if isClaudeMode}
         <IconBolt size={16} />
       {:else}
         <IconTerminal size={16} />
@@ -120,30 +142,37 @@
     </div>
 
     <!-- Prompt indicator -->
-    <span class="prompt">{isClaude ? '>' : '$'}</span>
+    <span class="prompt">{isClaudeMode ? '>' : '$'}</span>
 
     <!-- Text input -->
     <textarea
       bind:this={inputEl}
       bind:value={inputValue}
       class="input-field"
-      placeholder={isClaude ? 'Ask Claude...' : 'Enter command...'}
+      placeholder={isClaudeMode
+        ? (isStreaming ? 'Claude is responding…' : 'Ask Claude...')
+        : 'Enter command...'}
       rows="1"
       oninput={handleInput}
       onkeydown={handleKeydown}
       spellcheck="false"
       autocomplete="off"
+      disabled={isStreaming}
     ></textarea>
 
     <!-- Send button -->
     <button
       class="send-btn"
-      class:active={inputValue.trim().length > 0}
+      class:active={inputValue.trim().length > 0 && !isStreaming}
       onclick={send}
-      disabled={!inputValue.trim()}
+      disabled={!inputValue.trim() || isStreaming}
       title="Send (Enter)"
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      {#if isStreaming}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      {:else}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      {/if}
     </button>
   </div>
 
@@ -151,8 +180,10 @@
   <div class="hints">
     <span class="hint"><kbd>Enter</kbd> send</span>
     <span class="hint"><kbd>Shift+Enter</kbd> newline</span>
-    <span class="hint"><kbd>↑↓</kbd> history</span>
-    <span class="hint"><kbd>Ctrl+C</kbd> interrupt</span>
+    {#if !isClaudeMode}
+      <span class="hint"><kbd>↑↓</kbd> history</span>
+    {/if}
+    <span class="hint"><kbd>Ctrl+C</kbd> {isClaudeMode ? 'abort' : 'interrupt'}</span>
     {#if workspaceStore.active}
       <span class="hint ws">{workspaceStore.active.name}</span>
     {/if}

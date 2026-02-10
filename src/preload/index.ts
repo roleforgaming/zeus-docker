@@ -192,6 +192,26 @@ contextBridge.exposeInMainWorld('zeus', {
     update: () => ipcRenderer.invoke('claude:update')
   },
 
+  // ── Claude Session (headless -p mode) ──
+  claudeSession: {
+    send: (conversationId: string, prompt: string, cwd: string) =>
+      ipcRenderer.invoke('claude-session:send', conversationId, prompt, cwd),
+    abort: (conversationId: string) =>
+      ipcRenderer.invoke('claude-session:abort', conversationId),
+    onEvent: (callback: (payload: { id: string; event: Record<string, unknown> }) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, payload: { id: string; event: Record<string, unknown> }) =>
+        callback(payload)
+      ipcRenderer.on('claude-session:event', handler)
+      return () => ipcRenderer.removeListener('claude-session:event', handler)
+    },
+    onDone: (callback: (payload: { id: string; exitCode: number; sessionId?: string }) => void) => {
+      const handler = (_: Electron.IpcRendererEvent, payload: { id: string; exitCode: number; sessionId?: string }) =>
+        callback(payload)
+      ipcRenderer.on('claude-session:done', handler)
+      return () => ipcRenderer.removeListener('claude-session:done', handler)
+    }
+  },
+
   // ── IDE ──
   ide: {
     list: () => ipcRenderer.invoke('ide:list'),

@@ -6,7 +6,7 @@ export interface Toast {
   id: number
 }
 
-export type ActiveViewType = 'terminal' | 'doc'
+export type ActiveViewType = 'terminal' | 'doc' | 'claude'
 
 class UIStore {
   sidebarCollapsed = $state(false)

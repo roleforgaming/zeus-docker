@@ -1,5 +1,6 @@
 <script lang="ts">
   import { terminalStore } from '../stores/terminal.svelte.js'
+  import { claudeSessionStore } from '../stores/claude-session.svelte.js'
   import { markdownStore } from '../stores/markdown.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
   import IconBolt from './icons/IconBolt.svelte'
@@ -12,13 +13,12 @@
     uiStore.activeView = 'terminal'
   }
 
-  function switchToDoc(id: string) {
-    void markdownStore.switchTo(id)
+  function switchToClaude(id: string) {
+    claudeSessionStore.switchTo(id)
   }
 
-  function closeDoc(e: MouseEvent, id: string) {
-    e.stopPropagation()
-    markdownStore.close(id)
+  function switchToDoc(id: string) {
+    void markdownStore.switchTo(id)
   }
 
   function closeTerminal(e: MouseEvent, id: number) {
@@ -26,12 +26,23 @@
     terminalStore.close(id)
   }
 
-  /** Middle-click (wheel button) on a terminal tab → close it */
+  function closeClaude(e: MouseEvent, id: string) {
+    e.stopPropagation()
+    claudeSessionStore.close(id)
+  }
+
+  function closeDoc(e: MouseEvent, id: string) {
+    e.stopPropagation()
+    markdownStore.close(id)
+  }
+
+  /** Middle-click (wheel button) closes tabs */
   function handleTerminalAuxClick(e: MouseEvent, id: number) {
     if (e.button === 1) { e.preventDefault(); terminalStore.close(id) }
   }
-
-  /** Middle-click on a doc tab → close it */
+  function handleClaudeAuxClick(e: MouseEvent, id: string) {
+    if (e.button === 1) { e.preventDefault(); claudeSessionStore.close(id) }
+  }
   function handleDocAuxClick(e: MouseEvent, id: string) {
     if (e.button === 1) { e.preventDefault(); markdownStore.close(id) }
   }
@@ -39,12 +50,15 @@
   /** Horizontal scroll with mouse wheel on the tab bar */
   function handleWheel(e: WheelEvent) {
     if (!tabBarEl) return
-    // Convert vertical scroll to horizontal
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       e.preventDefault()
       tabBarEl.scrollLeft += e.deltaY
     }
   }
+
+  const hasTerminals = $derived(terminalStore.sessions.length > 0)
+  const hasClaude = $derived(claudeSessionStore.conversations.length > 0)
+  const hasDocs = $derived(markdownStore.openTabs.length > 0)
 </script>
 
 <div class="tab-bar" bind:this={tabBarEl} onwheel={handleWheel}>
@@ -58,12 +72,8 @@
     >
       <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
       <div class="tab-body" onclick={() => switchToTerminal(session.id)}>
-        <span class="tab-icon" class:claude={session.isClaude}>
-          {#if session.isClaude}
-            <IconBolt size={14} />
-          {:else}
-            <IconTerminal size={14} />
-          {/if}
+        <span class="tab-icon">
+          <IconTerminal size={14} />
         </span>
         <span class="tab-title">{session.title}</span>
       </div>
@@ -74,8 +84,38 @@
     </div>
   {/each}
 
-  <!-- Separator if both types exist -->
-  {#if terminalStore.sessions.length > 0 && markdownStore.openTabs.length > 0}
+  <!-- Separator between terminals and claude -->
+  {#if hasTerminals && (hasClaude || hasDocs)}
+    <div class="tab-sep"></div>
+  {/if}
+
+  <!-- Claude conversation tabs -->
+  {#each claudeSessionStore.conversations as conv (conv.id)}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="tab claude-tab"
+      class:active={uiStore.activeView === 'claude' && conv.id === claudeSessionStore.activeId}
+      onauxclick={(e) => handleClaudeAuxClick(e, conv.id)}
+    >
+      <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_noninteractive_element_interactions -->
+      <div class="tab-body" onclick={() => switchToClaude(conv.id)}>
+        <span class="tab-icon claude">
+          <IconBolt size={14} />
+        </span>
+        <span class="tab-title">{conv.title}</span>
+        {#if conv.isStreaming}
+          <span class="streaming-dot"></span>
+        {/if}
+      </div>
+      <button
+        class="tab-close"
+        onclick={(e) => closeClaude(e, conv.id)}
+      >&times;</button>
+    </div>
+  {/each}
+
+  <!-- Separator before docs -->
+  {#if hasClaude && hasDocs && !hasTerminals}
     <div class="tab-sep"></div>
   {/if}
 
@@ -146,8 +186,18 @@
   }
 
   .tab-icon { display: flex; align-items: center; }
-  .tab-icon.claude { color: #c084fc; }
+  .tab-icon.claude { color: #cba6f7; }
   .tab-icon.doc { color: #60a5fa; }
+
+  .streaming-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #cba6f7; flex-shrink: 0;
+    animation: stream-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes stream-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
 
   .tab-title { max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 

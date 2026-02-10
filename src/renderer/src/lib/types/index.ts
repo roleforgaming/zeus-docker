@@ -98,6 +98,48 @@ export interface DocTab {
   content: string
 }
 
+// ── Claude Conversation (headless mode) ─────────────────────────────────────
+export interface ContentBlock {
+  type: 'text' | 'tool_use' | 'tool_result' | 'thinking'
+  text?: string
+  name?: string          // tool name for tool_use
+  input?: Record<string, unknown>
+  content?: string       // for tool_result
+  thinking?: string      // for thinking blocks
+}
+
+export interface ClaudeMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string        // display text
+  blocks?: ContentBlock[]
+  timestamp: number
+}
+
+export interface ClaudeConversation {
+  id: string             // Zeus-internal conversation ID
+  claudeSessionId: string | null  // Claude Code's session_id for --resume
+  title: string
+  workspacePath?: string
+  messages: ClaudeMessage[]
+  isStreaming: boolean
+  streamingContent: string
+  streamingBlocks: ContentBlock[]
+}
+
+export interface ClaudeStreamEvent {
+  type?: string
+  message?: { role?: string; content?: unknown; model?: string }
+  sessionId?: string
+  result?: string
+  is_error?: boolean
+  costUsd?: number
+  duration_ms?: number
+  duration_api_ms?: number
+  num_turns?: number
+  [key: string]: unknown
+}
+
 // ── Store ──────────────────────────────────────────────────────────────────────
 export interface AppStore {
   workspaces: Workspace[]
@@ -132,6 +174,12 @@ export interface ZeusAPI {
     isInstalled(): Promise<boolean>
     version(): Promise<string | null>
     update(): Promise<ClaudeUpdateResult>
+  }
+  claudeSession: {
+    send(conversationId: string, prompt: string, cwd: string): Promise<boolean>
+    abort(conversationId: string): Promise<boolean>
+    onEvent(callback: (payload: { id: string; event: ClaudeStreamEvent }) => void): () => void
+    onDone(callback: (payload: { id: string; exitCode: number; sessionId?: string }) => void): () => void
   }
   ide: {
     list(): Promise<IDE[]>
