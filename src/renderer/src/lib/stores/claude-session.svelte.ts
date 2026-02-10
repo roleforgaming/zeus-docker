@@ -5,6 +5,12 @@ import { uiStore } from './ui.svelte.js'
 
 let nextConvId = 1
 
+/** Max messages kept per conversation. Oldest pairs are trimmed to stay under this limit. */
+const MAX_MESSAGES = 200
+
+/** Max size (chars) of streamingContent before we start truncating the front. */
+const MAX_STREAMING_CONTENT = 100_000
+
 /**
  * Extract text from Claude Code JSONL message content.
  * Content can be a string or an array of content blocks.
@@ -149,6 +155,25 @@ class ClaudeSessionStore {
     }
   }
 
+  /** Free all resources for a workspace that was removed */
+  removeWorkspace(workspacePath: string): void {
+    this._snapshots.delete(workspacePath)
+    // If the removed workspace is the current one, clear state
+    if (this._currentWorkspace === workspacePath) {
+      // Abort any streaming conversations
+      for (const conv of this.conversations) {
+        if (conv.isStreaming) {
+          window.zeus.claudeSession.abort(conv.id).catch(() => {})
+        }
+        window.zeus.claudeSession.close(conv.id).catch(() => {})
+      }
+      this.conversations = []
+      this.activeId = null
+      this.savedSessions = []
+      this._currentWorkspace = null
+    }
+  }
+
   /** Create a new conversation and switch to it. */
   create(workspacePath?: string): string {
     const id = `claude-${nextConvId++}`
@@ -267,8 +292,15 @@ class ClaudeSessionStore {
   /** Close a conversation and clean up main process session. */
   async close(id: string) {
     const conv = this.conversations.find((c) => c.id === id)
-    if (conv?.isStreaming) {
-      await window.zeus.claudeSession.abort(id)
+    if (conv) {
+      if (conv.isStreaming) {
+        await window.zeus.claudeSession.abort(id)
+      }
+      // Eagerly release large buffers before removing from array
+      conv.messages = []
+      conv.streamingContent = ''
+      conv.streamingBlocks = []
+      conv.streamingStatus = ''
     }
 
     // [B1] Clean up main process session entry
@@ -396,6 +428,10 @@ class ClaudeSessionStore {
       const delta = any.delta as Record<string, unknown> | undefined
       if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
         conv.streamingContent += delta.text
+        // Prevent unbounded memory growth during very long streaming responses
+        if (conv.streamingContent.length > MAX_STREAMING_CONTENT) {
+          conv.streamingContent = conv.streamingContent.slice(-MAX_STREAMING_CONTENT)
+        }
         conv.streamingStatus = 'Writing…'
       } else if (delta?.type === 'thinking_delta') {
         conv.streamingStatus = 'Thinking…'
@@ -424,6 +460,9 @@ class ClaudeSessionStore {
 
     } else if (event.type === 'raw' && typeof any.text === 'string') {
       conv.streamingContent += any.text as string
+      if (conv.streamingContent.length > MAX_STREAMING_CONTENT) {
+        conv.streamingContent = conv.streamingContent.slice(-MAX_STREAMING_CONTENT)
+      }
 
     } else if (event.type === 'error' || event.type === 'stderr') {
       const errText = typeof any.text === 'string' ? (any.text as string) : ''
@@ -472,6 +511,11 @@ class ClaudeSessionStore {
     conv.streamingContent = ''
     conv.streamingBlocks = []
     conv.streamingStatus = ''
+
+    // Cap total messages to prevent unbounded growth
+    if (conv.messages.length > MAX_MESSAGES) {
+      conv.messages = conv.messages.slice(-MAX_MESSAGES)
+    }
 
     // Update title from first user message if still default
     if (conv.title === 'Claude Code' && conv.messages.length >= 1) {

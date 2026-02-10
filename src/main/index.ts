@@ -83,12 +83,40 @@ function loadStore(): AppStore {
   return { workspaces: [], lastWorkspace: null, idePreference: 'code', windowBounds: null }
 }
 
+let _saveStoreTimer: ReturnType<typeof setTimeout> | null = null
+let _saveStorePending = false
+
 function saveStore(data: AppStore): void {
-  try {
-    fs.mkdirSync(path.dirname(storeFilePath), { recursive: true })
-    fs.writeFileSync(storeFilePath, JSON.stringify(data, null, 2), 'utf-8')
-  } catch (e) {
-    console.error('[zeus] Failed to save store:', e)
+  _saveStorePending = true
+  // Debounce rapid saves (e.g. session auto-saves) to max once per 500ms
+  if (_saveStoreTimer) return
+  _saveStoreTimer = setTimeout(() => {
+    _saveStoreTimer = null
+    if (!_saveStorePending) return
+    _saveStorePending = false
+    try {
+      fs.mkdirSync(path.dirname(storeFilePath), { recursive: true })
+      fs.writeFileSync(storeFilePath, JSON.stringify(data, null, 2), 'utf-8')
+    } catch (e) {
+      console.error('[zeus] Failed to save store:', e)
+    }
+  }, 500)
+}
+
+/** Immediately flush any pending store save (call on quit) */
+function flushStore(): void {
+  if (_saveStoreTimer) {
+    clearTimeout(_saveStoreTimer)
+    _saveStoreTimer = null
+  }
+  if (_saveStorePending) {
+    _saveStorePending = false
+    try {
+      fs.mkdirSync(path.dirname(storeFilePath), { recursive: true })
+      fs.writeFileSync(storeFilePath, JSON.stringify(store, null, 2), 'utf-8')
+    } catch (e) {
+      console.error('[zeus] Failed to flush store:', e)
+    }
   }
 }
 
@@ -142,6 +170,63 @@ function getClaudeCodeVersion(): string | null {
   }
 }
 
+interface ModelAliasInfo {
+  alias: string
+  fullName: string
+  version: string
+}
+
+function getClaudeModelAliases(): ModelAliasInfo[] {
+  try {
+    const claudePath = getClaudeCliPath()
+    const realPath = fs.realpathSync(claudePath)
+
+    let src: string | null = null
+
+    // Strategy 1: npm-installed package (cli.js in parent dir)
+    const pkgDir = path.resolve(path.dirname(realPath), '..')
+    const cliJs = path.join(pkgDir, 'cli.js')
+    if (fs.existsSync(cliJs)) {
+      src = fs.readFileSync(cliJs, 'utf-8')
+    }
+
+    // Strategy 2: native binary — extract strings containing model aliases
+    if (!src) {
+      try {
+        const raw = execSync(
+          `strings "${realPath}" | grep -oE '\\{opus:"claude-[^"]+",sonnet:"claude-[^"]+",haiku:"claude-[^"]+"\\}' | head -1`,
+          { encoding: 'utf-8', timeout: 10000, stdio: ['pipe', 'pipe', 'pipe'] }
+        ).trim()
+        if (raw) src = raw
+      } catch { /* ignore */ }
+    }
+
+    if (!src) return []
+
+    // Match alias mapping: {opus:"claude-opus-4-6",sonnet:"claude-sonnet-4-5-20250929",haiku:"claude-haiku-4-5-20251001"}
+    const aliasRegex = /\{(\s*\w+\s*:\s*"claude-[\w-]+"\s*,?\s*)+\}/g
+    const matches = src.matchAll(aliasRegex)
+
+    for (const m of matches) {
+      const block = m[0]
+      const entries = [...block.matchAll(/(\w+)\s*:\s*"(claude-[\w-]+)"/g)]
+      if (entries.length < 2) continue
+
+      const models: ModelAliasInfo[] = []
+      for (const [, alias, fullName] of entries) {
+        // Extract version: claude-opus-4-6 → 4.6, claude-sonnet-4-5-20250929 → 4.5
+        const verMatch = fullName.match(/claude-\w+-(\d+(?:-\d+)?)(?:-\d{8})?$/)
+        const version = verMatch ? verMatch[1].replace(/-/g, '.') : ''
+        models.push({ alias, fullName, version })
+      }
+      if (models.length >= 2) return models
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
 function checkLatestClaudeVersion(): Promise<{ current: string | null; latest: string | null; upToDate: boolean }> {
   return new Promise((resolve) => {
     const current = getClaudeCodeVersion()
@@ -189,6 +274,8 @@ function updateClaudeCode(): Promise<{ success: boolean; output?: string; error?
     child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
 
     child.on('close', (code) => {
+      // Invalidate cached path — the binary location may have changed
+      cachedClaudePath = null
       if (code === 0) resolve({ success: true, output: stdout })
       else resolve({ success: false, error: stderr || `Exit code ${code}` })
     })
@@ -285,6 +372,7 @@ function createWindow(): void {
     if (mainWindow) {
       store.windowBounds = mainWindow.getBounds()
       saveStore(store)
+      flushStore() // immediate write on close — don't lose window bounds
     }
   })
 
@@ -454,6 +542,7 @@ function registerIPC(): void {
   // Claude
   ipcMain.handle('claude:is-installed', () => isClaudeCodeInstalled())
   ipcMain.handle('claude:version', () => getClaudeCodeVersion())
+  ipcMain.handle('claude:models', () => getClaudeModelAliases())
   ipcMain.handle('claude:check-latest', () => checkLatestClaudeVersion())
   ipcMain.handle('claude:update', () => updateClaudeCode())
 
@@ -516,6 +605,16 @@ function registerIPC(): void {
 
   // MCP
   ipcMain.handle('mcp:install', (_, pkg: string) => installMCPPackage(pkg))
+  ipcMain.handle('mcp:health', () => checkMcpHealth())
+
+  // ── Plugins ──
+  ipcMain.handle('plugin:list', () => listPlugins())
+  ipcMain.handle('plugin:marketplace-list', () => listMarketplaces())
+  ipcMain.handle('plugin:install', (_, name: string, scope?: string) => runPluginCmd('install', name, scope))
+  ipcMain.handle('plugin:uninstall', (_, name: string) => runPluginCmd('uninstall', name))
+  ipcMain.handle('plugin:enable', (_, name: string, scope?: string) => runPluginCmd('enable', name, scope))
+  ipcMain.handle('plugin:disable', (_, name: string, scope?: string) => runPluginCmd('disable', name, scope))
+  ipcMain.handle('plugin:marketplace-add', (_, source: string) => runPluginCmd('marketplace add', source))
 
   // Skills — scan .claude/commands/ recursively
   ipcMain.handle('skills:scan', (_, wsPath: string) => scanCustomSkills(wsPath))
@@ -648,6 +747,170 @@ function installMCPPackage(pkg: string): Promise<{ success: boolean; output?: st
     child.on('close', (code) => {
       if (code === 0) resolve({ success: true, output: stdout })
       else resolve({ success: false, error: stderr || `Exit code ${code}` })
+    })
+    child.on('error', (err) => resolve({ success: false, error: err.message }))
+  })
+}
+
+// ── MCP Health ───────────────────────────────────────────────────────────────
+
+interface McpHealthEntry {
+  name: string
+  command: string       // e.g. "npx -y mcp-remote ..." or "https://mcp.example.com"
+  transport: string     // "HTTP" | "stdio" | "SSE" | ""
+  status: 'connected' | 'failed' | 'unknown'
+  error?: string
+}
+
+function checkMcpHealth(): Promise<McpHealthEntry[]> {
+  return new Promise((resolve) => {
+    const claudePath = getClaudeCliPath()
+    const child = spawn(claudePath, ['mcp', 'list'], {
+      shell: true,
+      env: { ...process.env },
+      timeout: 30000
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.on('close', () => {
+      const entries: McpHealthEntry[] = []
+      const combined = stdout + stderr
+      // Parse lines like:
+      //   context7: https://mcp.context7.com/mcp (HTTP) - ✓ Connected
+      //   plugin:github:github: https://api.githubcopilot.com/mcp/ (HTTP) - ✗ Failed to connect
+      //   serena: npx -y mcp-remote http://... - ✓ Connected
+      for (const line of combined.split('\n')) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('Checking')) continue
+
+        // Match: name: command/url (transport) - status
+        // or:    name: command/url - status
+        const match = trimmed.match(
+          /^(.+?):\s+(.+?)\s*(?:\((\w+)\)\s*)?-\s+[✓✗]\s*(.+)$/
+        )
+        if (!match) continue
+
+        const [, rawName, command, transport, statusText] = match
+        const name = rawName.trim()
+        const connected = statusText.trim().toLowerCase().includes('connected')
+        entries.push({
+          name,
+          command: command.trim(),
+          transport: transport || '',
+          status: connected ? 'connected' : 'failed',
+          error: connected ? undefined : statusText.trim()
+        })
+      }
+      resolve(entries)
+    })
+    child.on('error', () => resolve([]))
+  })
+}
+
+// ── Plugins ──────────────────────────────────────────────────────────────────
+
+interface PluginEntry {
+  name: string        // e.g. "github@claude-plugins-official"
+  version: string
+  scope: string       // "user" | "project" | "local"
+  enabled: boolean
+}
+
+interface MarketplaceEntry {
+  name: string
+  source: string
+}
+
+function listPlugins(): Promise<PluginEntry[]> {
+  return new Promise((resolve) => {
+    const claudePath = getClaudeCliPath()
+    const child = spawn(claudePath, ['plugin', 'list'], {
+      shell: true,
+      env: { ...process.env },
+      timeout: 15000
+    })
+    let stdout = ''
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.on('close', () => {
+      const plugins: PluginEntry[] = []
+      // Parse the output: "  ❯ name@marketplace\n    Version: ...\n    Scope: ...\n    Status: ✔ enabled"
+      const blocks = stdout.split(/\n\s*❯\s+/).filter(Boolean)
+      for (const block of blocks) {
+        const lines = block.trim().split('\n')
+        const nameLine = lines[0]?.trim()
+        if (!nameLine) continue
+        // Must have Version, Scope, and Status lines — skip headers / malformed blocks
+        const versionLine = lines.find(l => l.includes('Version:'))
+        const scopeLine = lines.find(l => l.includes('Scope:'))
+        const statusLine = lines.find(l => l.includes('Status:'))
+        if (!versionLine || !scopeLine || !statusLine) continue
+        // Must contain @ (e.g. "github@claude-plugins-official")
+        if (!nameLine.includes('@')) continue
+        const version = versionLine.replace(/.*Version:\s*/, '').trim()
+        const scope = scopeLine.replace(/.*Scope:\s*/, '').trim()
+        const enabled = statusLine.includes('enabled')
+        plugins.push({ name: nameLine, version, scope, enabled })
+      }
+      resolve(plugins)
+    })
+    child.on('error', () => resolve([]))
+  })
+}
+
+function listMarketplaces(): Promise<MarketplaceEntry[]> {
+  return new Promise((resolve) => {
+    const claudePath = getClaudeCliPath()
+    const child = spawn(claudePath, ['plugin', 'marketplace', 'list'], {
+      shell: true,
+      env: { ...process.env },
+      timeout: 15000
+    })
+    let stdout = ''
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.on('close', () => {
+      const marketplaces: MarketplaceEntry[] = []
+      const blocks = stdout.split(/\n\s*❯\s+/).filter(Boolean)
+      for (const block of blocks) {
+        const lines = block.trim().split('\n')
+        const name = lines[0]?.trim()
+        if (!name) continue
+        // Skip header blocks (e.g. "Configured marketplaces:") that don't contain Source:
+        if (!lines.some(l => l.includes('Source:'))) continue
+        const source = lines.find(l => l.includes('Source:'))?.replace(/.*Source:\s*/, '').trim() || ''
+        marketplaces.push({ name, source })
+      }
+      resolve(marketplaces)
+    })
+    child.on('error', () => resolve([]))
+  })
+}
+
+function runPluginCmd(
+  action: string,
+  target: string,
+  scope?: string
+): Promise<{ success: boolean; output?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const claudePath = getClaudeCliPath()
+    const args = ['plugin', ...action.split(' '), target]
+    if (scope && (action === 'install' || action === 'enable' || action === 'disable')) {
+      args.push('--scope', scope)
+    }
+    console.log(`[zeus] Running: ${claudePath} ${args.join(' ')}`)
+    const child = spawn(claudePath, args, {
+      shell: true,
+      env: { ...process.env },
+      timeout: 30000
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.on('close', (code) => {
+      if (code === 0) resolve({ success: true, output: stdout })
+      else resolve({ success: false, error: stderr || stdout || `Exit code ${code}` })
     })
     child.on('error', (err) => resolve({ success: false, error: err.message }))
   })
@@ -1166,7 +1429,13 @@ function spawnClaudeSession(conversationId: string, prompt: string, cwd: string,
 function killAllClaudeSessions(): void {
   for (const [, s] of claudeSessions) {
     if (s.process) {
-      try { s.process.kill('SIGINT') } catch { /* ignore */ }
+      try {
+        s.process.removeAllListeners()
+        s.process.stdout?.removeAllListeners()
+        s.process.stderr?.removeAllListeners()
+        s.process.kill('SIGINT')
+      } catch { /* ignore */ }
+      s.process = null
     }
   }
   claudeSessions.clear()
@@ -1353,4 +1622,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 
-app.on('before-quit', killAllTerminals)
+app.on('before-quit', () => {
+  killAllTerminals()
+  flushStore()
+})

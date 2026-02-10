@@ -11,17 +11,63 @@ export type ActiveViewType = 'terminal' | 'doc' | 'claude'
 export interface ModelOption {
   id: string      // value passed to --model
   label: string   // display name
+  version: string // model version string
   desc: string    // short description
   group?: string  // optional grouping header
 }
 
-export const AVAILABLE_MODELS: ModelOption[] = [
-  { id: 'sonnet', label: 'Sonnet', desc: 'Fast & balanced', group: 'Sonnet' },
-  { id: 'sonnet[1m]', label: 'Sonnet 1M', desc: 'Extended 1M context', group: 'Sonnet' },
-  { id: 'opus', label: 'Opus', desc: 'Most capable', group: 'Opus' },
-  { id: 'opus[1m]', label: 'Opus 1M', desc: 'Extended 1M context', group: 'Opus' },
-  { id: 'haiku', label: 'Haiku', desc: 'Fastest & lightest', group: 'Haiku' },
+/** Model descriptions keyed by alias */
+const MODEL_DESC: Record<string, { desc: string; group: string }> = {
+  sonnet: { desc: 'Fast & balanced', group: 'Sonnet' },
+  opus:   { desc: 'Most capable', group: 'Opus' },
+  haiku:  { desc: 'Fastest & lightest', group: 'Haiku' },
+}
+
+/** Static fallback if dynamic fetch fails */
+const FALLBACK_MODELS: ModelOption[] = [
+  { id: 'sonnet', label: 'Sonnet', version: '4.5', desc: 'Fast & balanced', group: 'Sonnet' },
+  { id: 'sonnet[1m]', label: 'Sonnet 1M', version: '4.5', desc: 'Extended 1M context', group: 'Sonnet' },
+  { id: 'opus', label: 'Opus', version: '4.6', desc: 'Most capable', group: 'Opus' },
+  { id: 'opus[1m]', label: 'Opus 1M', version: '4.6', desc: 'Extended 1M context', group: 'Opus' },
+  { id: 'haiku', label: 'Haiku', version: '3.5', desc: 'Fastest & lightest', group: 'Haiku' },
 ]
+
+/** Reactive model list — populated dynamically from Claude Code */
+export let AVAILABLE_MODELS = $state<ModelOption[]>([...FALLBACK_MODELS])
+
+/** Fetch model aliases from Claude Code and build AVAILABLE_MODELS */
+async function loadModelsFromClaudeCode(): Promise<void> {
+  try {
+    const aliases: { alias: string; fullName: string; version: string }[] =
+      await window.zeus.claude.models()
+    if (!aliases || aliases.length === 0) return
+
+    const models: ModelOption[] = []
+    for (const { alias, version } of aliases) {
+      const label = alias.charAt(0).toUpperCase() + alias.slice(1)
+      const meta = MODEL_DESC[alias] ?? { desc: '', group: label }
+      models.push({
+        id: alias,
+        label,
+        version,
+        desc: meta.desc,
+        group: meta.group
+      })
+      // Also add [1m] extended context variant
+      models.push({
+        id: `${alias}[1m]`,
+        label: `${label} 1M`,
+        version,
+        desc: 'Extended 1M context',
+        group: meta.group
+      })
+    }
+    if (models.length > 0) {
+      AVAILABLE_MODELS.length = 0
+      AVAILABLE_MODELS.push(...models)
+    }
+  } catch { /* keep fallback */ }
+}
 
 class UIStore {
   sidebarCollapsed = $state(false)
@@ -96,10 +142,13 @@ class UIStore {
     this.inputPrefill = null
   }
 
-  /** Sync selected model from Claude Code's settings.json */
+  /** Load models from Claude Code and sync selected model from settings */
   async syncModelFromSettings() {
     if (this._modelSynced) return
     try {
+      // Load dynamic model list first
+      await loadModelsFromClaudeCode()
+
       const config = await window.zeus.claudeConfig.read()
       const model = (config as Record<string, unknown>).model
       if (typeof model === 'string' && model) {
@@ -109,7 +158,9 @@ class UIStore {
         } else {
           // Add as a custom entry and select it
           if (!AVAILABLE_MODELS.find((m) => m.id === model)) {
-            AVAILABLE_MODELS.unshift({ id: model, label: model, desc: 'From settings', group: 'Custom' })
+            const vMatch = model.match(/(\d+(?:-\d+)?)(?:-\d{8})?$/)
+            const ver = vMatch ? vMatch[1].replace(/-/g, '.') : ''
+            AVAILABLE_MODELS.unshift({ id: model, label: model, version: ver, desc: 'From settings', group: 'Custom' })
           }
           this.selectedModel = model
         }

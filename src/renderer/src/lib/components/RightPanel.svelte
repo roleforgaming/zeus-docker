@@ -40,15 +40,17 @@
       </button>
     </div>
 
-    <!-- Panel content -->
+    <!-- Panel content — keep all tabs mounted; show/hide via CSS to avoid re-init -->
     <div class="panel-body">
-      {#if activeTab === 'skills'}
+      <div class="panel-tab-content" class:hidden={activeTab !== 'skills'}>
         <SkillsPanel />
-      {:else if activeTab === 'mcp'}
+      </div>
+      <div class="panel-tab-content" class:hidden={activeTab !== 'mcp'}>
         <MCPPanel />
-      {:else if activeTab === 'docs'}
+      </div>
+      <div class="panel-tab-content" class:hidden={activeTab !== 'docs'}>
         <MarkdownPreview />
-      {/if}
+      </div>
     </div>
   {/if}
 </aside>
@@ -106,5 +108,15 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    position: relative;
+  }
+  .panel-tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-tab-content.hidden {
+    display: none;
   }
 </style>

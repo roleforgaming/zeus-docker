@@ -141,6 +141,17 @@ class MarkdownStore {
     }
   }
 
+  /** Free all resources for a workspace that was removed */
+  removeWorkspace(workspacePath: string): void {
+    this._snapshots.delete(workspacePath)
+    if (this._currentWorkspace === workspacePath) {
+      this.files = []
+      this.openTabs = []
+      this.activeDocId = null
+      this._currentWorkspace = null
+    }
+  }
+
   /** Clear all state (e.g. when workspace changes) */
   reset() {
     this.files = []

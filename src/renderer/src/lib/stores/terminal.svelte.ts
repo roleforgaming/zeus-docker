@@ -81,6 +81,27 @@ class TerminalStore {
     return window.zeus.terminal.attach(termId, elementId)
   }
 
+  /** Free all resources for a workspace that was removed */
+  removeWorkspace(workspacePath: string): void {
+    const snap = this._snapshots.get(workspacePath)
+    if (snap) {
+      // Kill all PTY processes in the snapshot
+      for (const s of snap.sessions) {
+        window.zeus.terminal.kill(s.id).catch(() => {})
+      }
+      this._snapshots.delete(workspacePath)
+    }
+    // If the removed workspace is the current one, kill all current sessions
+    if (this._currentWorkspace === workspacePath) {
+      for (const s of this.sessions) {
+        window.zeus.terminal.kill(s.id).catch(() => {})
+      }
+      this.sessions = []
+      this.activeId = null
+      this._currentWorkspace = null
+    }
+  }
+
   /** Switch visible terminal. */
   switchTo(id: number) {
     this.activeId = id

@@ -78,10 +78,39 @@ export interface MCPServer {
   enabled: boolean
 }
 
+export interface McpHealthEntry {
+  name: string
+  command: string
+  transport: string
+  status: 'connected' | 'failed' | 'unknown'
+  error?: string
+}
+
+export interface McpServerDef {
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+}
+
 export interface ClaudeConfig {
-  mcpServers?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>
+  mcpServers?: Record<string, McpServerDef>
+  /** Zeus-managed: disabled MCP servers preserved for reconnection */
+  _disabledMcpServers?: Record<string, McpServerDef>
   permissions?: { allow?: string[]; deny?: string[] }
   [key: string]: unknown
+}
+
+// ── Plugins ───────────────────────────────────────────────────────────────────
+export interface PluginEntry {
+  name: string        // e.g. "github@claude-plugins-official"
+  version: string
+  scope: string       // "user" | "project" | "local"
+  enabled: boolean
+}
+
+export interface MarketplaceEntry {
+  name: string
+  source: string
 }
 
 // ── Markdown / Docs ───────────────────────────────────────────────────────────
@@ -184,6 +213,7 @@ export interface ZeusAPI {
   claude: {
     isInstalled(): Promise<boolean>
     version(): Promise<string | null>
+    models(): Promise<{ alias: string; fullName: string; version: string }[]>
     checkLatest(): Promise<{ current: string | null; latest: string | null; upToDate: boolean }>
     update(): Promise<ClaudeUpdateResult>
   }
@@ -222,6 +252,16 @@ export interface ZeusAPI {
   }
   mcp: {
     install(pkg: string): Promise<{ success: boolean; output?: string; error?: string }>
+    health(): Promise<McpHealthEntry[]>
+  }
+  plugin: {
+    list(): Promise<PluginEntry[]>
+    marketplaceList(): Promise<MarketplaceEntry[]>
+    install(name: string, scope?: string): Promise<{ success: boolean; output?: string; error?: string }>
+    uninstall(name: string): Promise<{ success: boolean; output?: string; error?: string }>
+    enable(name: string, scope?: string): Promise<{ success: boolean; output?: string; error?: string }>
+    disable(name: string, scope?: string): Promise<{ success: boolean; output?: string; error?: string }>
+    marketplaceAdd(source: string): Promise<{ success: boolean; output?: string; error?: string }>
   }
   files: {
     listMd(dirPath: string): Promise<MarkdownFile[]>

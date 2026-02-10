@@ -187,6 +187,7 @@ contextBridge.exposeInMainWorld('zeus', {
   claude: {
     isInstalled: () => ipcRenderer.invoke('claude:is-installed'),
     version: () => ipcRenderer.invoke('claude:version'),
+    models: () => ipcRenderer.invoke('claude:models'),
     checkLatest: () => ipcRenderer.invoke('claude:check-latest'),
     update: () => ipcRenderer.invoke('claude:update')
   },
@@ -253,7 +254,19 @@ contextBridge.exposeInMainWorld('zeus', {
   },
 
   mcp: {
-    install: (pkg: string) => ipcRenderer.invoke('mcp:install', pkg)
+    install: (pkg: string) => ipcRenderer.invoke('mcp:install', pkg),
+    health: () => ipcRenderer.invoke('mcp:health')
+  },
+
+  // ── Plugins ──
+  plugin: {
+    list: () => ipcRenderer.invoke('plugin:list'),
+    marketplaceList: () => ipcRenderer.invoke('plugin:marketplace-list'),
+    install: (name: string, scope?: string) => ipcRenderer.invoke('plugin:install', name, scope),
+    uninstall: (name: string) => ipcRenderer.invoke('plugin:uninstall', name),
+    enable: (name: string, scope?: string) => ipcRenderer.invoke('plugin:enable', name, scope),
+    disable: (name: string, scope?: string) => ipcRenderer.invoke('plugin:disable', name, scope),
+    marketplaceAdd: (source: string) => ipcRenderer.invoke('plugin:marketplace-add', source),
   },
 
   // ── Files ──

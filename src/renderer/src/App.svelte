@@ -118,9 +118,11 @@
 
   // When workspace changes, swap all tab states to workspace-scoped snapshots
   let prevWorkspacePath: string | null = null
+  let switchingWorkspace = false
   $effect(() => {
     const ws = workspaceStore.active
-    if (ws && ws.path !== prevWorkspacePath) {
+    if (ws && ws.path !== prevWorkspacePath && !switchingWorkspace) {
+      switchingWorkspace = true
       prevWorkspacePath = ws.path
 
       // Switch all stores to this workspace's tab state
@@ -138,6 +140,8 @@
         // Ensure we're viewing the Claude tab if conversations were restored
         uiStore.activeView = 'claude'
       }
+
+      switchingWorkspace = false
     }
   })
 
@@ -178,6 +182,10 @@
         window.zeus.system.revealInFinder(wsPath)
         break
       case 'remove':
+        // Clean up all workspace-scoped resources before removing
+        claudeSessionStore.removeWorkspace(wsPath)
+        terminalStore.removeWorkspace(wsPath)
+        markdownStore.removeWorkspace(wsPath)
         workspaceStore.remove(wsPath)
         break
     }
@@ -187,6 +195,12 @@
     const meta = e.metaKey || e.ctrlKey
     if (meta && e.key === 'b') {
       e.preventDefault(); uiStore.toggleSidebar(); terminalStore.fitActiveDebounced(250)
+    }
+    if (meta && e.key === 't') {
+      e.preventDefault(); newTerminal()
+    }
+    if (meta && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+      e.preventDefault(); runClaude()
     }
     if (meta && e.key === 'i') {
       e.preventDefault(); toggleRightPanel()

@@ -6,6 +6,7 @@
   import { terminalStore } from '../stores/terminal.svelte.js'
   import { uiStore, AVAILABLE_MODELS } from '../stores/ui.svelte.js'
   import IconClaude from './icons/IconClaude.svelte'
+  import IconAnthropic from './icons/IconAnthropic.svelte'
 
   let inputEl: HTMLTextAreaElement
   let inputValue = $state('')
@@ -214,7 +215,7 @@
   // ── Model menu ──
   const currentModel = $derived(
     AVAILABLE_MODELS.find((m) => m.id === uiStore.selectedModel) ??
-    { id: uiStore.selectedModel, label: uiStore.selectedModel, desc: '' }
+    { id: uiStore.selectedModel, label: uiStore.selectedModel, version: '', desc: '' }
   )
 
   function selectModel(id: string) {
@@ -703,8 +704,11 @@
   <div class="hints">
     <div class="model-selector">
       <button class="model-btn" onclick={toggleModelMenu} title="Select model">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7.8-3.6 5.2-3m5.2-3 5.2-3M4.2 5.4l5.2 3m5.2 3 5.2 3"/></svg>
+        <IconAnthropic size={12} />
         <span>{currentModel.label}</span>
+        {#if currentModel.version}
+          <span class="model-ver">{currentModel.version}</span>
+        {/if}
         <svg class="caret" class:open={modelMenuOpen} width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {#if modelMenuOpen}
@@ -716,6 +720,9 @@
               onclick={() => selectModel(model.id)}
             >
               <span class="model-name">{model.label}</span>
+              {#if model.version}
+                <span class="model-version">{model.version}</span>
+              {/if}
               <span class="model-desc">{model.desc}</span>
               {#if model.id === uiStore.selectedModel}
                 <svg class="check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -1058,10 +1065,23 @@
   .model-option:hover { background: #3e4451; color: #abb2bf; }
   .model-option.active { color: #c678dd; }
 
+  .model-ver {
+    font-size: 10px; color: #5c6370; font-weight: 400;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+  }
+  .model-btn:hover .model-ver { color: #7f848e; }
+
   .model-name {
     font-size: 12px; font-weight: 600;
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
   }
+  .model-version {
+    font-size: 10px; color: #61afef; font-weight: 500;
+    background: rgba(97, 175, 239, 0.1); padding: 1px 5px; border-radius: 4px;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+  .model-option.active .model-version { color: #c678dd; background: rgba(198, 120, 221, 0.1); }
   .model-desc {
     font-size: 10px; color: #4b5263; flex: 1;
   }

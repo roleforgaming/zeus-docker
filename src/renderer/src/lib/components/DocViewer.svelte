@@ -1,5 +1,6 @@
 <script lang="ts">
   import { marked } from 'marked'
+  import DOMPurify from 'dompurify'
   import { markdownStore } from '../stores/markdown.svelte.js'
   import { workspaceStore } from '../stores/workspace.svelte.js'
 
@@ -7,9 +8,10 @@
     const tab = markdownStore.activeTab
     if (!tab || !tab.content) return ''
     try {
-      return marked.parse(tab.content, { async: false }) as string
+      const raw = marked.parse(tab.content, { async: false }) as string
+      return DOMPurify.sanitize(raw, { ADD_TAGS: ['details', 'summary'] })
     } catch {
-      return '<p style="color:#f87171;">Failed to parse markdown</p>'
+      return '<p style="color:#e06c75;">Failed to parse markdown</p>'
     }
   })
 
@@ -61,30 +63,30 @@
 
   .doc-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 20px; border-bottom: 1px solid #1e1e1e;
-    flex-shrink: 0; background: #111;
+    padding: 10px 20px; border-bottom: 1px solid #181a1f;
+    flex-shrink: 0; background: #21252b;
   }
 
   .doc-breadcrumb {
     display: flex; align-items: center; gap: 8px; min-width: 0;
   }
-  .doc-icon { color: #60a5fa; flex-shrink: 0; }
+  .doc-icon { color: #61afef; flex-shrink: 0; }
   .breadcrumb-path {
     font-size: 12px; color: #7f848e;
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .breadcrumb-size {
-    font-size: 11px; color: #555; flex-shrink: 0;
+    font-size: 11px; color: #5c6370; flex-shrink: 0;
   }
 
   .reload-btn {
     width: 28px; height: 28px; border: none; border-radius: 6px;
-    background: transparent; color: #666; cursor: pointer;
+    background: transparent; color: #5c6370; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
     transition: all 120ms ease; flex-shrink: 0;
   }
-  .reload-btn:hover { background: #222; color: #e6e6e6; }
+  .reload-btn:hover { background: #2c313a; color: #abb2bf; }
 
   /* Scrollable body with comfortable max-width */
   .doc-body {
@@ -96,41 +98,42 @@
 
   .markdown-content {
     max-width: 820px; width: 100%;
-    font-size: 15px; line-height: 1.75; color: #ccc;
+    font-size: 15px; line-height: 1.75; color: #abb2bf;
     font-family: 'Pretendard Variable', Pretendard, -apple-system, sans-serif;
   }
 
   /* ── Markdown styles ─────────────────────────────────────────── */
   .markdown-content :global(h1) {
-    font-size: 28px; font-weight: 700; color: #e6e6e6;
-    margin: 32px 0 16px; padding-bottom: 10px; border-bottom: 1px solid #262626;
+    font-size: 28px; font-weight: 700; color: #e5c07b;
+    margin: 32px 0 16px; padding-bottom: 10px; border-bottom: 1px solid #3e4451;
   }
   .markdown-content :global(h2) {
-    font-size: 22px; font-weight: 600; color: #e6e6e6; margin: 28px 0 12px;
-    padding-bottom: 8px; border-bottom: 1px solid #1e1e1e;
+    font-size: 22px; font-weight: 600; color: #e5c07b; margin: 28px 0 12px;
+    padding-bottom: 8px; border-bottom: 1px solid #3e4451;
   }
-  .markdown-content :global(h3) { font-size: 18px; font-weight: 600; color: #e6e6e6; margin: 24px 0 8px; }
-  .markdown-content :global(h4) { font-size: 15px; font-weight: 600; color: #ddd; margin: 20px 0 6px; }
+  .markdown-content :global(h3) { font-size: 18px; font-weight: 600; color: #e5c07b; margin: 24px 0 8px; }
+  .markdown-content :global(h4) { font-size: 15px; font-weight: 600; color: #d19a66; margin: 20px 0 6px; }
   .markdown-content :global(p) { margin: 0 0 16px; }
-  .markdown-content :global(a) { color: #c084fc; text-decoration: none; }
+  .markdown-content :global(a) { color: #61afef; text-decoration: none; }
   .markdown-content :global(a:hover) { text-decoration: underline; }
-  .markdown-content :global(strong) { font-weight: 600; color: #e6e6e6; }
+  .markdown-content :global(strong) { font-weight: 600; color: #d19a66; }
   .markdown-content :global(em) { font-style: italic; }
   .markdown-content :global(code) {
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    background: #1a1a1a; color: #d8b4fe; padding: 2px 6px; border-radius: 4px;
+    background: #21252b; color: #e06c75; padding: 2px 6px; border-radius: 4px;
+    border: 1px solid #3e4451;
     font-size: 0.88em;
   }
   .markdown-content :global(pre) {
-    background: #111; border: 1px solid #262626; border-radius: 8px;
+    background: #1e2127; border: 1px solid #3e4451; border-radius: 10px;
     padding: 16px 20px; overflow-x: auto; margin: 0 0 20px;
   }
   .markdown-content :global(pre code) {
-    background: none; padding: 0; color: #ccc; font-size: 13px; line-height: 1.6;
+    background: none; padding: 0; color: #abb2bf; font-size: 13px; line-height: 1.6;
   }
   .markdown-content :global(blockquote) {
-    border-left: 3px solid #c084fc; padding: 8px 20px; margin: 0 0 16px;
-    color: #7f848e; background: rgba(192, 132, 252, 0.05); border-radius: 0 6px 6px 0;
+    border-left: 3px solid #4b5263; padding: 8px 20px; margin: 0 0 16px;
+    color: #7f848e; background: rgba(75, 82, 99, 0.1); border-radius: 0 6px 6px 0;
   }
   .markdown-content :global(ul), .markdown-content :global(ol) {
     padding-left: 28px; margin: 0 0 16px;
@@ -140,15 +143,15 @@
     width: 100%; border-collapse: collapse; margin: 0 0 20px; font-size: 14px;
   }
   .markdown-content :global(th) {
-    text-align: left; padding: 10px 14px; border-bottom: 2px solid #4b5263;
-    color: #e6e6e6; font-weight: 600;
+    text-align: left; padding: 10px 14px; border-bottom: 2px solid #3e4451;
+    color: #abb2bf; font-weight: 600;
   }
   .markdown-content :global(td) {
-    padding: 8px 14px; border-bottom: 1px solid #1a1a1a;
+    padding: 8px 14px; border-bottom: 1px solid #2c313a;
   }
   .markdown-content :global(tr:hover td) { background: rgba(255,255,255,0.02); }
   .markdown-content :global(hr) {
-    border: none; border-top: 1px solid #262626; margin: 32px 0;
+    border: none; border-top: 1px solid #3e4451; margin: 32px 0;
   }
   .markdown-content :global(img) {
     max-width: 100%; border-radius: 8px; margin: 12px 0;

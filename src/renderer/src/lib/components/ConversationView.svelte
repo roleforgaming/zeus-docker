@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import { marked } from 'marked'
+  import DOMPurify from 'dompurify'
   import { claudeSessionStore } from '../stores/claude-session.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
   import InputBar from './InputBar.svelte'
@@ -36,23 +37,35 @@
     }
   })
 
-  // [P3] Cached markdown rendering
+  // [P3] Cached markdown rendering — keyed by lightweight hash instead of full text
   const mdCache = new Map<string, string>()
-  const MD_CACHE_MAX = 100
+  const MD_CACHE_MAX = 80
+
+  /** Simple FNV-1a hash for cache key — avoids storing full text as map key */
+  function hashStr(s: string): string {
+    let h = 0x811c9dc5
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i)
+      h = Math.imul(h, 0x01000193)
+    }
+    return (h >>> 0).toString(36) + '_' + s.length
+  }
 
   function renderMarkdown(text: string): string {
-    const cached = mdCache.get(text)
+    const key = hashStr(text)
+    const cached = mdCache.get(key)
     if (cached) return cached
     try {
-      const html = marked.parse(text, { async: false }) as string
+      const raw = marked.parse(text, { async: false }) as string
+      const html = DOMPurify.sanitize(raw, { ADD_TAGS: ['details', 'summary'] })
       if (mdCache.size >= MD_CACHE_MAX) {
         const firstKey = mdCache.keys().next().value
         if (firstKey !== undefined) mdCache.delete(firstKey)
       }
-      mdCache.set(text, html)
+      mdCache.set(key, html)
       return html
     } catch {
-      return `<p>${text}</p>`
+      return `<p>${DOMPurify.sanitize(text)}</p>`
     }
   }
 
