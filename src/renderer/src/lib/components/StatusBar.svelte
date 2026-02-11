@@ -39,7 +39,7 @@
     height: 28px; display: flex; align-items: center; justify-content: space-between;
     padding: 0 12px; background: var(--bg-surface); border-top: 1px solid var(--border-subtle);
     font-size: 11px; color: var(--text-muted);
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
   }
   .left, .right { display: flex; align-items: center; gap: 16px; }
   .item { display: flex; align-items: center; gap: 4px; }

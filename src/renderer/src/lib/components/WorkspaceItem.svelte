@@ -106,7 +106,7 @@
     color: var(--text-secondary);
     font-size: 14px;
     font-weight: 600;
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
     text-transform: uppercase;
   }
   .workspace-icon.active { background: var(--accent-bg); color: var(--accent); }
@@ -128,6 +128,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
   }
 </style>

@@ -73,7 +73,7 @@
   .doc-icon { color: var(--blue); flex-shrink: 0; }
   .breadcrumb-path {
     font-size: 12px; color: var(--text-secondary);
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .breadcrumb-size {
@@ -120,7 +120,7 @@
   .markdown-content :global(strong) { font-weight: 600; color: var(--orange); }
   .markdown-content :global(em) { font-style: italic; }
   .markdown-content :global(code) {
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     background: var(--bg-surface); color: var(--red); padding: 2px 6px; border-radius: 4px;
     border: 1px solid var(--border);
     font-size: 0.88em;

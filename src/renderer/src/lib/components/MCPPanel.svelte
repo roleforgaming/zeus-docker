@@ -955,12 +955,12 @@
   @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   .health-error {
     display: block; font-size: 10px; color: var(--red); margin-top: 2px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .server-cmd {
     display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .server-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -988,7 +988,7 @@
   }
   .config-value {
     font-size: 12px; color: var(--text-bright); word-break: break-all;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     background: rgba(255, 255, 255, 0.03); padding: 4px 8px;
     border-radius: 4px; border: 1px solid var(--bg-raised);
   }
@@ -1031,7 +1031,7 @@
   .btn-sm.primary:hover { background: var(--accent-border); }
   .env-row {
     display: flex; align-items: center; gap: 6px; padding: 4px 0;
-    font-size: 12px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-size: 12px; font-family: var(--font-mono);
   }
   .env-key { color: var(--blue); font-weight: 500; }
   .env-eq { color: var(--text-dim); }
@@ -1066,7 +1066,7 @@
   .form-input {
     width: 100%; padding: 7px 10px; border: 1px solid var(--text-muted);
     background: var(--bg-deep); color: var(--text-bright); border-radius: 5px;
-    font-size: 13px; font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 13px; font-family: var(--font-mono);
     outline: none; box-sizing: border-box;
   }
   .form-input:focus { border-color: var(--accent); }
@@ -1115,7 +1115,7 @@
     font-size: 11px; color: var(--text-dim); line-height: 1.5; margin: 0;
   }
   .quick-tip code {
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 11px; color: var(--accent-hover);
     background: var(--accent-glow); padding: 1px 4px; border-radius: 3px;
   }
@@ -1163,7 +1163,7 @@
   .market-name { font-size: 13px; font-weight: 600; color: var(--text-bright); flex-shrink: 0; }
   .transport-badge {
     font-size: 9px; padding: 2px 7px; border-radius: 4px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-weight: 700; letter-spacing: 0.02em;
     border: 1px solid transparent;
   }
@@ -1264,7 +1264,7 @@
   .plugin-name-row { display: flex; align-items: baseline; gap: 4px; }
   .plugin-marketplace {
     font-size: 10px; color: var(--text-secondary);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   /* ── Plugin install section ── */
@@ -1284,7 +1284,7 @@
   .scope-select {
     padding: 6px 8px; border: 1px solid var(--text-muted);
     background: var(--bg-deep); color: var(--text-bright); border-radius: 5px;
-    font-size: 11px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-size: 11px; font-family: var(--font-mono);
     outline: none; cursor: pointer;
   }
   .scope-select:focus { border-color: var(--accent); }
@@ -1298,7 +1298,7 @@
   .mp-name { color: var(--text-bright); font-weight: 600; }
   .mp-source {
     font-size: 10px; color: var(--text-dim);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   .refresh-btn {
@@ -1324,7 +1324,7 @@
 
   .market-source {
     display: block; font-size: 9px; color: var(--text-secondary); margin-top: 2px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   .market-footer {

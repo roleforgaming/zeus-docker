@@ -137,7 +137,7 @@
   }
   .header-count {
     font-size: 10px; color: var(--border-strong);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   /* ── Loading / Empty ── */
@@ -185,7 +185,7 @@
   .folder-badge {
     display: inline-flex; align-items: center; gap: 3px;
     font-size: 11px; font-weight: 600;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     color: var(--blue);
   }
   .folder-badge.root { color: var(--blue); }
@@ -193,7 +193,7 @@
   /* Path breadcrumb */
   .folder-path {
     display: flex; align-items: center; gap: 0;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 11px; min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
@@ -204,7 +204,7 @@
   .folder-count {
     font-size: 9px; color: var(--border-strong); background: var(--bg-raised);
     padding: 1px 5px; border-radius: 6px; flex-shrink: 0;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   /* ── Files ── */
@@ -248,7 +248,7 @@
 
   .file-relpath {
     font-size: 10px; color: var(--border-strong);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .file-item:hover .file-relpath { color: var(--text-muted); }
@@ -256,6 +256,6 @@
 
   .file-size {
     font-size: 10px; color: var(--border-strong); flex-shrink: 0;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 </style>

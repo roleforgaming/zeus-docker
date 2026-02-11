@@ -240,7 +240,7 @@
     display: flex;
     gap: 6px;
     font-size: 11px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .stat-add { color: var(--green); }
   .stat-del { color: var(--red); }
@@ -294,7 +294,7 @@
     color: var(--text-primary);
     cursor: pointer;
     text-align: left;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     transition: background 80ms ease;
   }
@@ -340,7 +340,7 @@
     border-bottom: 1px solid var(--bg-raised);
     font-size: 11px;
     color: var(--text-secondary);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     flex-shrink: 0;
   }
   .diff-file-name { color: var(--text-primary); }
@@ -354,7 +354,7 @@
 
   .diff-content {
     overflow: auto;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.5;
     scrollbar-width: thin;

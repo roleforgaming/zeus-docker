@@ -313,7 +313,9 @@
     background: var(--bg-base);
     color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    letter-spacing: var(--letter-spacing-normal);
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
@@ -332,8 +334,8 @@
     -webkit-app-region: drag;
   }
   .titlebar-text {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
     color: var(--text-secondary);
     pointer-events: none;
   }

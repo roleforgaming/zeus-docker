@@ -582,7 +582,7 @@
   .md :global(strong) { font-weight: 600; color: var(--orange); }
   .md :global(em) { color: var(--text-secondary); }
   .md :global(code) {
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     background: var(--bg-surface); color: var(--red); padding: 1px 5px; border-radius: 4px;
     font-size: 0.85em; border: 1px solid var(--border);
   }
@@ -619,7 +619,7 @@
     display: flex; align-items: center; gap: 8px;
     padding: 4px 0 2px; margin-top: 2px;
     font-size: 11px; color: var(--text-muted);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .token-usage svg { opacity: 0.4; flex-shrink: 0; }
   .token-in { color: var(--blue); }
@@ -631,7 +631,7 @@
   .streaming-status {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 0 4px; font-size: 12px; color: var(--text-secondary);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     animation: status-fade-in 200ms ease;
   }
   @keyframes status-fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -654,7 +654,7 @@
     border-radius: 10px;
     overflow: hidden;
     animation: status-fade-in 200ms ease;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .sa-table-header {
     display: flex; align-items: center; gap: 6px;
@@ -775,7 +775,7 @@
     overflow-wrap: break-word; word-break: break-word;
   }
   .prompt-tool code {
-    color: var(--accent); font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    color: var(--accent); font-family: var(--font-mono);
     font-size: 12px; background: none; padding: 0;
   }
   .prompt-tool-input {
@@ -788,7 +788,7 @@
     display: inline-flex; align-items: center; gap: 5px;
     padding: 6px 14px; border: 1px solid var(--border-muted); border-radius: 6px;
     background: var(--bg-inset); color: var(--text-primary); font-size: 12px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     cursor: pointer; transition: all 120ms ease;
   }
   .prompt-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); color: var(--text-bright); }
@@ -817,7 +817,7 @@
     flex: 1; padding: 6px 10px;
     background: var(--bg-deep); border: 1px solid var(--border-muted); border-radius: 6px;
     color: var(--text-bright); font-size: 12px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     outline: none;
   }
   .prompt-text-input:focus { border-color: var(--border-strong); }
@@ -825,7 +825,7 @@
     display: inline-block; padding: 1px 5px; margin-left: 2px;
     background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 3px; font-size: 10px; color: var(--text-secondary);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     line-height: 1.4; vertical-align: middle;
   }
 
@@ -862,7 +862,7 @@
     min-width: 22px; height: 22px; border-radius: 6px;
     background: rgba(97, 175, 239, 0.12); color: var(--blue);
     font-size: 12px; font-weight: 600; flex-shrink: 0;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .quick-reply-label {
     word-break: break-word;

@@ -395,7 +395,7 @@
   .filter-input {
     flex: 1; padding: 7px 0; border: none; background: transparent;
     color: var(--text-primary); font-size: 12px; outline: none;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
   .filter-input::placeholder { color: var(--border-strong); }
   .filter-clear {
@@ -407,7 +407,7 @@
   .filter-clear:hover { background: var(--border); color: var(--text-primary); }
   .filter-count {
     font-size: 10px; color: var(--text-muted); margin-right: 8px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     flex-shrink: 0;
   }
 
@@ -481,7 +481,7 @@
   }
   .cmd-name {
     font-size: 13px; font-weight: 600; color: var(--accent);
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
   }
   .cmd-origin {
     font-size: 10px; color: var(--text-muted); background: var(--bg-raised);
@@ -492,7 +492,7 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .cmd-path {
-    font-size: 10px; color: var(--border-strong); font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--border-strong); font-family: var(--font-mono);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
@@ -520,7 +520,7 @@
   .empty-desc { font-size: 11px; line-height: 1.6; margin: 0; }
   .empty-desc code {
     background: var(--bg-raised); padding: 1px 5px; border-radius: 3px;
-    font-size: 11px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-size: 11px; font-family: var(--font-mono);
     color: var(--accent);
   }
 

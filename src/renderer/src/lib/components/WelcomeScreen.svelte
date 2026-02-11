@@ -75,7 +75,7 @@
   .shortcut { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
   kbd {
     display: inline-block; padding: 2px 6px; font-size: 11px;
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
     color: var(--text-secondary); background: var(--bg-raised); border: 1px solid var(--border);
     border-radius: 4px; line-height: 1.4;
   }

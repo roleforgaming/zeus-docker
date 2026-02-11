@@ -84,5 +84,5 @@
     display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
   }
   .ide-name { flex: 1; }
-  .ide-cmd { font-size: 11px; color: var(--text-muted); font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace; }
+  .ide-cmd { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
 </style>

@@ -195,12 +195,12 @@
   }
   .result-version {
     font-size: 12px; color: var(--text-muted); margin: 0;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 
   .version-compare {
     display: flex; align-items: center; gap: 6px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
   }
   .ver-current { color: var(--text-muted); }
@@ -226,7 +226,7 @@
 
   .output {
     margin-top: 8px;
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 11px; color: var(--text-muted);
     white-space: pre-wrap; max-height: 200px; overflow-y: auto;
     background: var(--bg-surface); padding: 8px; border-radius: 6px;

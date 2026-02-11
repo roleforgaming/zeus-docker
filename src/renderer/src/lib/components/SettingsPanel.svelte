@@ -42,12 +42,14 @@
                       <div class="tp-line short"></div>
                       <div class="tp-line long"></div>
                       <div class="tp-line medium"></div>
+                      <span class="tp-font-sample {theme.id}">Aa</span>
                     </div>
                   </div>
                 </div>
                 <div class="theme-info">
                   <span class="theme-name">{theme.label}</span>
                   <span class="theme-desc">{theme.desc}</span>
+                  <span class="theme-font">{theme.fontHint}</span>
                 </div>
                 {#if uiStore.theme === theme.id}
                   <div class="theme-check">
@@ -208,6 +210,7 @@
     flex-direction: column;
     gap: 3px;
     justify-content: center;
+    position: relative;
   }
   .tp-line {
     height: 3px;
@@ -216,6 +219,29 @@
   .tp-line.short { width: 45%; }
   .tp-line.long { width: 80%; }
   .tp-line.medium { width: 60%; }
+
+  /* ── Font sample in preview ── */
+  .tp-font-sample {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    opacity: 0.6;
+    line-height: 1;
+  }
+  .tp-font-sample.claude-code {
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    color: #abb2bf;
+  }
+  .tp-font-sample.anthropic {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #6B6558;
+  }
+  .tp-font-sample.claude-dark {
+    font-family: 'JetBrains Mono', monospace;
+    color: #8A7F78;
+  }
 
   /* Claude Code preview colors */
   .theme-preview.claude-code {
@@ -263,6 +289,14 @@
     font-size: 11px;
     color: var(--text-secondary);
     margin-top: 2px;
+  }
+  .theme-font {
+    display: block;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
   }
 
   .theme-check {

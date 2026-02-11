@@ -1038,7 +1038,7 @@
     border: 1px solid var(--blue-border);
     color: var(--blue);
     font-size: 12px;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     animation: tag-in 150ms ease;
   }
   .file-icon { flex-shrink: 0; opacity: 0.7; }
@@ -1104,7 +1104,7 @@
     border-radius: 6px;
     font-size: 12px;
     font-weight: 600;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     flex-shrink: 0;
     animation: tag-in 150ms ease;
   }
@@ -1228,7 +1228,7 @@
   }
 
   .slash-cmd {
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 600;
     color: var(--accent);
@@ -1332,7 +1332,7 @@
     color: var(--text-primary);
     cursor: pointer;
     text-align: left;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     line-height: 1.4;
     transition: background 80ms ease;

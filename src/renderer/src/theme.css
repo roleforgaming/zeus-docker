@@ -1,56 +1,15 @@
 /*
  * Zeus Theme — CSS Custom Properties
  * ────────────────────────────────────
- * Single source of truth for all colors.
+ * Single source of truth for colors, fonts, and spacing.
  * Default: Claude Code (dark terminal). Switch via [data-theme] on <html>.
  */
 
 /* ══════════════════════════════════════════════════════════════════════════════
- * Shared tokens (never change across themes)
+ * Shared tokens (constant across all themes)
  * ══════════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Brand / Accent (Claude terracotta) ── */
-  --accent:           #D97757;
-  --accent-hover:     #E8956E;
-  --accent-light:     #F0B89A;
-  --accent-bg:        rgba(217, 119, 87, 0.12);
-  --accent-bg-hover:  rgba(217, 119, 87, 0.20);
-  --accent-bg-subtle: rgba(217, 119, 87, 0.06);
-  --accent-border:    rgba(217, 119, 87, 0.25);
-  --accent-border-strong: rgba(217, 119, 87, 0.45);
-  --accent-glow:      rgba(217, 119, 87, 0.10);
-
-  /* ── Semantic: Success / Green ── */
-  --green:        #98c379;
-  --green-bright: #b5e08c;
-  --green-soft:   #7abe75;
-  --green-bg:     rgba(152, 195, 121, 0.12);
-
-  /* ── Semantic: Error / Red ── */
-  --red:          #e06c75;
-  --red-hover:    #e88990;
-  --red-bg:       rgba(224, 108, 117, 0.12);
-
-  /* ── Semantic: Warning / Yellow ── */
-  --yellow:       #e5c07b;
-  --yellow-bg:    rgba(229, 192, 123, 0.10);
-
-  /* ── Semantic: Info / Blue ── */
-  --blue:         #61afef;
-  --blue-bright:  #7cc3f5;
-  --blue-bg:      rgba(97, 175, 239, 0.10);
-  --blue-border:  rgba(97, 175, 239, 0.20);
-
-  /* ── Semantic: Cyan ── */
-  --cyan:         #56b6c2;
-
-  /* ── Semantic: Orange (distinct from accent for data/tags) ── */
-  --orange:       #d19a66;
-  --orange-warm:  #d0966a;
-
-  /* ── Font stacks ── */
-  --font-sans:  'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
-                'Noto Sans KR', 'Segoe UI', Inter, Roboto, sans-serif;
+  /* ── Code Font (constant — always Claude Code style) ── */
   --font-mono:  'D2Coding', 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
 
   /* ── Spacing / Radius ── */
@@ -67,6 +26,18 @@
  * ══════════════════════════════════════════════════════════════════════════════ */
 :root,
 [data-theme="claude-code"] {
+  /* ── Brand / Accent ── */
+  --accent:           #D97757;
+  --accent-hover:     #E8956E;
+  --accent-light:     #F0B89A;
+  --accent-bg:        rgba(217, 119, 87, 0.12);
+  --accent-bg-hover:  rgba(217, 119, 87, 0.20);
+  --accent-bg-subtle: rgba(217, 119, 87, 0.06);
+  --accent-border:    rgba(217, 119, 87, 0.25);
+  --accent-border-strong: rgba(217, 119, 87, 0.45);
+  --accent-glow:      rgba(217, 119, 87, 0.10);
+
+  /* ── Backgrounds ── */
   --bg-base:       #282c34;
   --bg-raised:     #2c313a;
   --bg-surface:    #21252b;
@@ -75,17 +46,71 @@
   --bg-hover:      #31363f;
   --bg-inset:      #2c2d31;
 
+  /* ── Borders ── */
   --border:        #3e4451;
   --border-subtle: #2e333b;
   --border-strong: #4b5263;
   --border-muted:  #3e4045;
 
+  /* ── Text ── */
   --text-primary:   #abb2bf;
   --text-bright:    #d4d8e0;
   --text-secondary: #7f848e;
   --text-muted:     #5c6370;
   --text-hint:      #4b5263;
   --text-dim:       #8b919d;
+
+  /* ── Semantic Colors ── */
+  --green:        #98c379;
+  --green-bright: #b5e08c;
+  --green-soft:   #7abe75;
+  --green-bg:     rgba(152, 195, 121, 0.12);
+
+  --red:          #e06c75;
+  --red-hover:    #e88990;
+  --red-bg:       rgba(224, 108, 117, 0.12);
+
+  --yellow:       #e5c07b;
+  --yellow-bg:    rgba(229, 192, 123, 0.10);
+
+  --blue:         #61afef;
+  --blue-bright:  #7cc3f5;
+  --blue-bg:      rgba(97, 175, 239, 0.10);
+  --blue-border:  rgba(97, 175, 239, 0.20);
+
+  --cyan:         #56b6c2;
+  --orange:       #d19a66;
+  --orange-warm:  #d0966a;
+
+  /* ── Font Stacks (UI text — theme-specific) ── */
+  --font-sans:  'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                system-ui, 'Noto Sans KR', 'Segoe UI', Inter, Roboto, sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif;
+
+  /* ── Font Sizes ── */
+  --font-size-xs:   10px;
+  --font-size-sm:   12px;
+  --font-size-base: 13px;
+  --font-size-md:   14px;
+  --font-size-lg:   16px;
+  --font-size-xl:   20px;
+
+  /* ── Font Weight ── */
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ── Line Height ── */
+  --line-height-tight:  1.3;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.65;
+
+  /* ── Letter Spacing ── */
+  --letter-spacing-tight:  -0.01em;
+  --letter-spacing-normal:  0;
+  --letter-spacing-wide:    0.03em;
+  --letter-spacing-wider:   0.05em;
 
   color-scheme: dark;
 }
@@ -94,28 +119,10 @@
 /* ══════════════════════════════════════════════════════════════════════════════
  * Theme: Anthropic  (warm light)
  * Inspired by anthropic.com — warm cream/beige editorial look
+ * Uses a refined serif + humanist sans-serif pairing
  * ══════════════════════════════════════════════════════════════════════════════ */
 [data-theme="anthropic"] {
-  --bg-base:       #FAF7F2;
-  --bg-raised:     #FFFFFF;
-  --bg-surface:    #F0ECE4;
-  --bg-deep:       #E8E3DA;
-  --bg-overlay:    #F5F1EB;
-  --bg-hover:      #EDE8E0;
-  --bg-inset:      #F3EFE8;
-
-  --border:        #D8D2C8;
-  --border-subtle: #E5E0D8;
-  --border-strong: #C5BFB5;
-  --border-muted:  #DDD8CF;
-
-  --text-primary:   #3D3929;
-  --text-bright:    #1A1710;
-  --text-secondary: #6B6558;
-  --text-muted:     #8C867A;
-  --text-hint:      #B0AA9E;
-  --text-dim:       #7A7468;
-
+  /* ── Brand / Accent ── */
   --accent:           #C1533C;
   --accent-hover:     #A8452F;
   --accent-light:     #D4735E;
@@ -126,6 +133,30 @@
   --accent-border-strong: rgba(193, 83, 60, 0.35);
   --accent-glow:      rgba(193, 83, 60, 0.08);
 
+  /* ── Backgrounds ── */
+  --bg-base:       #FAF7F2;
+  --bg-raised:     #FFFFFF;
+  --bg-surface:    #F0ECE4;
+  --bg-deep:       #E8E3DA;
+  --bg-overlay:    #F5F1EB;
+  --bg-hover:      #EDE8E0;
+  --bg-inset:      #F3EFE8;
+
+  /* ── Borders ── */
+  --border:        #D8D2C8;
+  --border-subtle: #E5E0D8;
+  --border-strong: #C5BFB5;
+  --border-muted:  #DDD8CF;
+
+  /* ── Text ── */
+  --text-primary:   #3D3929;
+  --text-bright:    #1A1710;
+  --text-secondary: #6B6558;
+  --text-muted:     #8C867A;
+  --text-hint:      #B0AA9E;
+  --text-dim:       #7A7468;
+
+  /* ── Semantic Colors (light-mode safe) ── */
   --green:        #3D8B37;
   --green-bright: #4CA345;
   --green-soft:   #5AA653;
@@ -147,15 +178,57 @@
   --orange:       #C05621;
   --orange-warm:  #B7472A;
 
+  /* ── Font Stacks (UI text — Anthropic: clean humanist sans + elegant serif) ── */
+  --font-sans:  'Inter', 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                system-ui, 'Noto Sans KR', 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Georgia', 'Noto Serif KR', 'Times New Roman', serif;
+
+  /* ── Font Sizes (slightly larger for readability on light bg) ── */
+  --font-size-xs:   10px;
+  --font-size-sm:   12px;
+  --font-size-base: 14px;
+  --font-size-md:   15px;
+  --font-size-lg:   17px;
+  --font-size-xl:   22px;
+
+  /* ── Font Weight ── */
+  --font-weight-normal:   400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ── Line Height (more relaxed for light editorial feel) ── */
+  --line-height-tight:  1.35;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.75;
+
+  /* ── Letter Spacing (slightly wider for the editorial look) ── */
+  --letter-spacing-tight:  -0.005em;
+  --letter-spacing-normal:  0.01em;
+  --letter-spacing-wide:    0.04em;
+  --letter-spacing-wider:   0.06em;
+
   color-scheme: light;
 }
 
 
 /* ══════════════════════════════════════════════════════════════════════════════
  * Theme: Claude Dark  (deep, refined dark)
- * A softer, more refined dark theme with warmer undertones
+ * A softer, warmer dark theme with Claude personality
  * ══════════════════════════════════════════════════════════════════════════════ */
 [data-theme="claude-dark"] {
+  /* ── Brand / Accent ── */
+  --accent:           #D97757;
+  --accent-hover:     #E8956E;
+  --accent-light:     #F0B89A;
+  --accent-bg:        rgba(217, 119, 87, 0.12);
+  --accent-bg-hover:  rgba(217, 119, 87, 0.20);
+  --accent-bg-subtle: rgba(217, 119, 87, 0.06);
+  --accent-border:    rgba(217, 119, 87, 0.25);
+  --accent-border-strong: rgba(217, 119, 87, 0.45);
+  --accent-glow:      rgba(217, 119, 87, 0.10);
+
+  /* ── Backgrounds ── */
   --bg-base:       #1C1917;
   --bg-raised:     #231F1D;
   --bg-surface:    #171412;
@@ -164,17 +237,71 @@
   --bg-hover:      #2A2623;
   --bg-inset:      #201D1A;
 
+  /* ── Borders ── */
   --border:        #352F2B;
   --border-subtle: #2A2522;
   --border-strong: #443D38;
   --border-muted:  #332E2A;
 
+  /* ── Text ── */
   --text-primary:   #C8BDB6;
   --text-bright:    #EDE5DF;
   --text-secondary: #8A7F78;
   --text-muted:     #6B6058;
   --text-hint:      #4A4038;
   --text-dim:       #9A8F88;
+
+  /* ── Semantic Colors (warm dark variant) ── */
+  --green:        #8FBE74;
+  --green-bright: #A8D48E;
+  --green-soft:   #72A966;
+  --green-bg:     rgba(143, 190, 116, 0.12);
+
+  --red:          #D4686F;
+  --red-hover:    #E08289;
+  --red-bg:       rgba(212, 104, 111, 0.12);
+
+  --yellow:       #D4AE5A;
+  --yellow-bg:    rgba(212, 174, 90, 0.10);
+
+  --blue:         #6AACDF;
+  --blue-bright:  #85C0EA;
+  --blue-bg:      rgba(106, 172, 223, 0.10);
+  --blue-border:  rgba(106, 172, 223, 0.20);
+
+  --cyan:         #5CBAC5;
+  --orange:       #C99560;
+  --orange-warm:  #C08056;
+
+  /* ── Font Stacks (UI text — warm, slightly softer feel) ── */
+  --font-sans:  'Inter', 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+                system-ui, 'Noto Sans KR', 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Georgia', 'Noto Serif KR', 'Times New Roman', serif;
+
+  /* ── Font Sizes ── */
+  --font-size-xs:   10px;
+  --font-size-sm:   12px;
+  --font-size-base: 13px;
+  --font-size-md:   14px;
+  --font-size-lg:   16px;
+  --font-size-xl:   20px;
+
+  /* ── Font Weight ── */
+  --font-weight-normal:   400;
+  --font-weight-medium:   450;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* ── Line Height ── */
+  --line-height-tight:  1.3;
+  --line-height-normal: 1.55;
+  --line-height-relaxed: 1.7;
+
+  /* ── Letter Spacing ── */
+  --letter-spacing-tight:  -0.01em;
+  --letter-spacing-normal:  0.005em;
+  --letter-spacing-wide:    0.03em;
+  --letter-spacing-wider:   0.05em;
 
   color-scheme: dark;
 }

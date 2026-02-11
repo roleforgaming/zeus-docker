@@ -240,6 +240,6 @@
   .ide-cmd {
     font-size: 10px;
     color: var(--text-muted);
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
   }
 </style>

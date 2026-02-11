@@ -14,12 +14,13 @@ export interface ThemeOption {
   id: ThemeId
   label: string
   desc: string
+  fontHint: string
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: 'claude-code', label: 'Claude Code', desc: 'Dark terminal' },
-  { id: 'anthropic',   label: 'Anthropic',   desc: 'Warm light' },
-  { id: 'claude-dark', label: 'Claude Dark',  desc: 'Refined dark' },
+  { id: 'claude-code', label: 'Claude Code', desc: 'Dark terminal',  fontHint: 'Pretendard · Code: D2Coding' },
+  { id: 'anthropic',   label: 'Anthropic',   desc: 'Warm light',     fontHint: 'Inter · Code: D2Coding' },
+  { id: 'claude-dark', label: 'Claude Dark',  desc: 'Refined dark',  fontHint: 'Inter · Code: D2Coding' },
 ]
 
 export interface ModelOption {
