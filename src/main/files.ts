@@ -223,6 +223,7 @@ export interface TranscriptMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
+  displayContent?: string // abbreviated label for skill invocations
   blocks?: Array<{ type: string; text?: string; name?: string; input?: Record<string, unknown>; content?: string; thinking?: string }>
   timestamp: number
 }
@@ -284,10 +285,13 @@ export function readClaudeTranscript(sessionId: string, workspacePath: string): 
             text = textParts.join('\n')
           }
           if (text.trim()) {
+            const trimmed = text.trim()
             messages.push({
               id: obj.uuid || `msg-${timestamp}-user`,
               role: 'user',
-              content: text.trim(),
+              content: trimmed,
+              // displayContent is only set by Zeus's send() at runtime;
+              // transcript doesn't have it, so leave undefined
               timestamp
             })
           }

@@ -14,6 +14,95 @@
   let modelMenuOpen = $state(false)
   let isDragOver = $state(false)
 
+  // ── Command history (derived from conversation messages) ──
+  let historyIndex = $state(-1) // -1 = not browsing; 0 = most recent
+  let savedDraft = $state('')   // saves current input when entering history mode
+  let historyMenuOpen = $state(false)
+
+  // Derive history from actual user messages in the active conversation (newest first)
+  // - If displayContent exists (set by Zeus when a skill was used), show that
+  // - If content is short enough to be actual typed input, show it
+  // - Skip long messages without displayContent (likely resolved skill .md bodies from transcript)
+  const MAX_TYPED_LENGTH = 500
+  const inputHistory = $derived.by(() => {
+    const conv = claudeSessionStore.activeConversation
+    if (!conv) return []
+    const items: string[] = []
+    for (let i = conv.messages.length - 1; i >= 0; i--) {
+      const m = conv.messages[i]
+      if (m.role !== 'user') continue
+      if (m.displayContent) {
+        // Explicitly labelled (skill invocation via Zeus) — always include
+        const text = m.displayContent.trim()
+        if (text) items.push(text)
+      } else {
+        // Raw content — only include if it looks like actual typed input
+        const text = m.content.trim()
+        if (text && text.length <= MAX_TYPED_LENGTH) {
+          items.push(text)
+        }
+      }
+    }
+    return items
+  })
+
+  // Reset history index when conversation changes
+  $effect(() => {
+    void claudeSessionStore.activeConversation?.id
+    historyIndex = -1
+    savedDraft = ''
+  })
+
+  function resizeTextarea() {
+    requestAnimationFrame(() => {
+      if (inputEl) {
+        inputEl.style.height = 'auto'
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 150) + 'px'
+      }
+    })
+  }
+
+  function navigateHistory(direction: 'up' | 'down') {
+    if (inputHistory.length === 0) return
+
+    if (direction === 'up') {
+      if (historyIndex === -1) {
+        savedDraft = inputValue
+        historyIndex = 0
+      } else if (historyIndex < inputHistory.length - 1) {
+        historyIndex++
+      } else {
+        return
+      }
+      inputValue = inputHistory[historyIndex]
+    } else {
+      if (historyIndex <= 0) {
+        historyIndex = -1
+        inputValue = savedDraft
+        savedDraft = ''
+      } else {
+        historyIndex--
+        inputValue = inputHistory[historyIndex]
+      }
+    }
+    resizeTextarea()
+  }
+
+  function selectHistoryItem(idx: number) {
+    inputValue = inputHistory[idx]
+    historyIndex = -1
+    savedDraft = ''
+    historyMenuOpen = false
+    requestAnimationFrame(() => {
+      inputEl?.focus()
+      resizeTextarea()
+    })
+  }
+
+  function toggleHistoryMenu() {
+    historyMenuOpen = !historyMenuOpen
+  }
+
   // ── Command tag (chip) ──
   interface CommandTag {
     command: string   // e.g. /project:deploy — sent to Claude
@@ -249,6 +338,9 @@
     }
     if (slashMenuOpen && !target.closest('.slash-menu') && !target.closest('.input-field')) {
       slashMenuOpen = false
+    }
+    if (historyMenuOpen && !target.closest('.history-menu') && !target.closest('.history-btn')) {
+      historyMenuOpen = false
     }
   }
 
@@ -535,6 +627,10 @@
     if ((!text && !commandTag && attachedFiles.length === 0) || !claudeConv) return
     slashMenuOpen = false
 
+    // Reset history browsing state
+    historyIndex = -1
+    savedDraft = ''
+
     // Handle built-in commands locally
     if (commandTag?.kind === 'builtin') {
       const translated = handleBuiltinCommand(commandTag.command, text)
@@ -553,7 +649,7 @@
     let displayContent: string | undefined = undefined
 
     // Resolve custom skill: find the .md file, read its content, replace $ARGUMENTS
-    if (commandTag && commandTag.kind !== 'builtin') {
+    if (commandTag) {
       const resolved = await resolveSkillContent(commandTag, text)
       if (resolved) {
         prompt = resolved
@@ -600,6 +696,35 @@
 
     // Slash menu captures navigation keys first
     if (handleSlashKeydown(e)) return
+
+    // Arrow Up/Down for command history when input is empty or single-line
+    if (e.key === 'ArrowUp' && !e.shiftKey && !commandTag) {
+      // Only navigate history if cursor is at position 0 or input is empty
+      const cursorAtStart = inputEl && inputEl.selectionStart === 0 && inputEl.selectionEnd === 0
+      if (inputValue === '' || cursorAtStart) {
+        e.preventDefault()
+        navigateHistory('up')
+        return
+      }
+    }
+    if (e.key === 'ArrowDown' && !e.shiftKey && !commandTag) {
+      // Only navigate history if browsing history
+      if (historyIndex >= 0) {
+        const cursorAtEnd = inputEl && inputEl.selectionStart === inputValue.length
+        if (cursorAtEnd || inputValue === inputHistory[historyIndex]) {
+          e.preventDefault()
+          navigateHistory('down')
+          return
+        }
+      }
+    }
+
+    // Escape closes history menu
+    if (e.key === 'Escape' && historyMenuOpen) {
+      e.preventDefault()
+      historyMenuOpen = false
+      return
+    }
 
     // Backspace on empty input removes the tag
     if (e.key === 'Backspace' && commandTag && inputValue === '') {
@@ -681,6 +806,28 @@
     <div class="drop-overlay">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       <span>Drop files here</span>
+    </div>
+  {/if}
+
+  <!-- Command history popup -->
+  {#if historyMenuOpen && inputHistory.length > 0}
+    <div class="history-menu">
+      <div class="history-header">
+        <span>Recent Commands</span>
+        <span class="history-count">{inputHistory.length}</span>
+      </div>
+      <div class="history-list">
+        {#each inputHistory as item, idx (idx)}
+          <button
+            class="history-item"
+            class:active={idx === historyIndex}
+            onclick={() => selectHistoryItem(idx)}
+          >
+            <span class="history-idx">{idx + 1}</span>
+            <span class="history-text">{item}</span>
+          </button>
+        {/each}
+      </div>
     </div>
   {/if}
 
@@ -819,7 +966,14 @@
       {/if}
     </div>
 
+    {#if inputHistory.length > 0}
+      <button class="hint-btn history-btn" class:active={historyMenuOpen} onclick={toggleHistoryMenu} title="Command history (↑/↓)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </button>
+    {/if}
     <span class="hint"><kbd>/</kbd> commands</span>
+    <span class="hint"><kbd>↑↓</kbd> history</span>
     <span class="hint"><kbd>Enter</kbd> send</span>
     <span class="hint"><kbd>Shift+Enter</kbd> newline</span>
     <span class="hint"><kbd>Ctrl+C</kbd> abort</span>
@@ -1103,6 +1257,95 @@
     white-space: nowrap;
     flex: 1;
     min-width: 0;
+  }
+
+  /* ── History menu ── */
+  .history-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 16px; right: 16px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    background: #2c313a;
+    border: 1px solid #4b5263;
+    border-radius: 12px;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.6);
+    z-index: 200;
+    margin-bottom: 4px;
+    overflow: hidden;
+  }
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #4b5263;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #3e4451;
+    flex-shrink: 0;
+  }
+  .history-count {
+    font-size: 9px;
+    background: #3e4451;
+    color: #5c6370;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+  }
+  .history-list {
+    overflow-y: auto;
+    padding: 4px;
+    scrollbar-width: thin;
+  }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-thumb { background: #3e4451; border-radius: 2px; }
+  .history-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #abb2bf;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    transition: background 80ms ease;
+  }
+  .history-item:hover,
+  .history-item.active {
+    background: #3e4451;
+  }
+  .history-idx {
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #4b5263;
+    min-width: 16px;
+    text-align: right;
+    padding-top: 1px;
+  }
+  .history-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    word-break: break-word;
+  }
+  .history-btn.active {
+    border-color: #5c6370;
+    color: #abb2bf;
+    background: #2c313a;
   }
 
   /* ── Hints ── */

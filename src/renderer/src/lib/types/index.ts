@@ -146,7 +146,8 @@ export interface ContentBlock {
 export interface ClaudeMessage {
   id: string
   role: 'user' | 'assistant'
-  content: string        // display text
+  content: string        // full content (may include resolved skill body)
+  displayContent?: string // short display text (e.g. "/skill-name args") — used in UI & history
   blocks?: ContentBlock[]
   timestamp: number
 }
@@ -182,6 +183,15 @@ export interface SubagentInfo {
   finished: boolean         // true once tool_result received for this agent
 }
 
+/** Real-time token usage stats */
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+  cacheReadTokens: number
+  cacheCreateTokens: number
+  totalCostUsd: number
+}
+
 export interface ClaudeConversation {
   id: string             // Zeus-internal conversation ID
   claudeSessionId: string | null  // Claude Code's session_id for --resume
@@ -199,6 +209,8 @@ export interface ClaudeConversation {
   activeSubagents: SubagentInfo[]
   /** Quick-reply buttons when the model asks a numbered-choice question */
   quickReplies: QuickReply[]
+  /** Real-time token usage for this conversation turn */
+  tokenUsage: TokenUsage | null
 }
 
 export interface ClaudeStreamEvent {

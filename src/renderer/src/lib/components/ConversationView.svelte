@@ -5,7 +5,7 @@
   import { claudeSessionStore } from '../stores/claude-session.svelte.js'
   import { skillsStore } from '../stores/skills.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
-  import { isSubagentTool, extractSubagentName, resolveAgentColor } from '../utils/agent-colors.js'
+  import { isSubagentTool, isSubagentAuxTool, subagentAuxLabel, extractSubagentName, resolveAgentColor } from '../utils/agent-colors.js'
   import InputBar from './InputBar.svelte'
   import ChangedFilesPanel from './ChangedFilesPanel.svelte'
   import IconClaude from './icons/IconClaude.svelte'
@@ -144,6 +144,20 @@
     return keys.map((k) => `${k}: ${JSON.stringify(input[k]).slice(0, 60)}`).join(', ')
   }
 
+  /** Format token count compactly: 1234 → "1.2k", 12345 → "12.3k" */
+  function fmtTokens(n: number): string {
+    if (n < 1000) return String(n)
+    if (n < 10000) return (n / 1000).toFixed(1) + 'k'
+    return Math.round(n / 1000) + 'k'
+  }
+
+  /** Format USD cost: 0.037548 → "$0.04" */
+  function fmtCost(usd: number): string {
+    if (usd < 0.01) return '<$0.01'
+    if (usd < 1) return '$' + usd.toFixed(2)
+    return '$' + usd.toFixed(2)
+  }
+
   /** Get agent color using shared utility with current skills data */
   function saColor(agentName: string): string {
     return resolveAgentColor(agentName, skillsStore.customSkills)
@@ -167,7 +181,7 @@
         case 'tool_use': {
           const name = block.name ?? 'Tool'
           if (isSubagentTool(name)) {
-            const agentName = extractSubagentName(name, block.input ?? {})
+            const agentName = extractSubagentName(name, block.input ?? {}) || name
             const color = saColor(agentName)
             const desc = block.input?.description || block.input?.prompt
             const descText = typeof desc === 'string'
@@ -175,6 +189,10 @@
               : ''
             parts.push(`\n---\n<span style="color:${color}">**⦿ ${agentName}**</span> ${descText ? `— ${descText}` : ''}\n`)
             inSubagent = true
+          } else if (isSubagentAuxTool(name)) {
+            // Background task output/cancel — show as status line, not raw block
+            const label = subagentAuxLabel(name, block.input ?? {})
+            parts.push(`\n*⏳ ${label}*\n`)
           } else {
             const prefix = inSubagent ? '> ' : ''
             parts.push(`\n${prefix}\`\`\`tool\n${prefix}▶ ${formatToolName(name)}${block.input ? `  ${formatToolInput(block.input)}` : ''}\n${prefix}\`\`\`\n`)
@@ -234,7 +252,14 @@
           <div class="msg" class:user={message.role === 'user'} class:assistant={message.role === 'assistant'}>
             {#if message.role === 'user'}
               <div class="msg-user">
-                <div class="msg-user-bubble">{message.content}</div>
+                <div class="msg-user-bubble">
+                  {#if !message.displayContent && message.content.length > 500}
+                    <span class="msg-skill-badge">skill</span>
+                    {message.content.slice(0, 120).trim()}…
+                  {:else}
+                    {message.displayContent || message.content}
+                  {/if}
+                </div>
               </div>
             {:else}
               <div class="msg-assistant">
@@ -363,35 +388,40 @@
                     </form>
                   </div>
                 {:else if conv.activeSubagents && conv.activeSubagents.length > 0}
-                  <!-- Subagent panels: supports parallel agent teams -->
-                  {#if conv.activeSubagents.length > 1}
-                    <div class="subagent-team-header">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                      <span>{conv.activeSubagents.length} agents running in parallel</span>
+                  <!-- Subagent table: compact status view -->
+                  {@const activeAgents = conv.activeSubagents.filter(s => !s.finished)}
+                  <div class="sa-table">
+                    <div class="sa-table-header">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      <span>{activeAgents.length} agent{activeAgents.length !== 1 ? 's' : ''} running</span>
                     </div>
-                  {/if}
-                  <div class="subagent-grid" class:parallel={conv.activeSubagents.length > 1}>
-                    {#each conv.activeSubagents.filter(s => !s.finished) as sa (sa.id)}
-                      <div class="subagent-panel" style="border-color: {sa.color}33; background: linear-gradient(135deg, {sa.color}0a, {sa.color}06);">
-                        <div class="subagent-header">
-                          <span class="subagent-dot" style="background: {sa.color};"></span>
-                          <span class="subagent-name" style="color: {sa.color};">{sa.name}</span>
-                          <span class="subagent-elapsed">{formatElapsed(sa.startedAt)}</span>
-                        </div>
-                        <div class="subagent-desc">{sa.description}</div>
-                        <div class="subagent-activity">
-                          <span class="subagent-pulse" style="background: {sa.color};"></span>
-                          <span class="subagent-status">{sa.nestedStatus || 'Working…'}</span>
-                        </div>
-                        {#if sa.toolsUsed.length > 0}
-                          <div class="subagent-tools">
-                            {#each sa.toolsUsed as tool (tool)}
-                              <span class="subagent-tool-chip" style="border-color: {sa.color}26; background: {sa.color}0d;">{tool}</span>
-                            {/each}
-                          </div>
-                        {/if}
+                    <div class="sa-table-body">
+                      <div class="sa-row sa-row-head">
+                        <span class="sa-cell sa-c-name">Agent</span>
+                        <span class="sa-cell sa-c-status">Status</span>
+                        <span class="sa-cell sa-c-tools">Tools</span>
+                        <span class="sa-cell sa-c-time">Time</span>
                       </div>
-                    {/each}
+                      {#each activeAgents as sa (sa.id)}
+                        <div class="sa-row" style="--sa-color: {sa.color};">
+                          <span class="sa-cell sa-c-name">
+                            <span class="sa-dot"></span>
+                            <span class="sa-name">{sa.name}</span>
+                          </span>
+                          <span class="sa-cell sa-c-status">
+                            <span class="sa-status-text">{sa.nestedStatus || sa.description || 'Working…'}</span>
+                          </span>
+                          <span class="sa-cell sa-c-tools">
+                            {#if sa.toolsUsed.length > 0}
+                              <span class="sa-tool-list">{sa.toolsUsed.slice(-3).join(', ')}{sa.toolsUsed.length > 3 ? ` +${sa.toolsUsed.length - 3}` : ''}</span>
+                            {:else}
+                              <span class="sa-tool-list sa-muted">—</span>
+                            {/if}
+                          </span>
+                          <span class="sa-cell sa-c-time">{formatElapsed(sa.startedAt)}</span>
+                        </div>
+                      {/each}
+                    </div>
                   </div>
                 {:else}
                   <!-- Status line: always visible during streaming -->
@@ -400,6 +430,20 @@
                       <span class="pulse"></span>
                     </span>
                     <span class="status-text">{conv.streamingStatus || 'Thinking…'}</span>
+                  </div>
+                {/if}
+                <!-- Token usage: shown during streaming when data is available -->
+                {#if conv.tokenUsage}
+                  <div class="token-usage">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                    <span class="token-in" title="Input tokens">↓{fmtTokens(conv.tokenUsage.inputTokens)}</span>
+                    <span class="token-out" title="Output tokens">↑{fmtTokens(conv.tokenUsage.outputTokens)}</span>
+                    {#if conv.tokenUsage.cacheReadTokens > 0}
+                      <span class="token-cache" title="Cache read tokens">⚡{fmtTokens(conv.tokenUsage.cacheReadTokens)}</span>
+                    {/if}
+                    {#if conv.tokenUsage.totalCostUsd > 0}
+                      <span class="token-cost" title="Estimated cost">{fmtCost(conv.tokenUsage.totalCostUsd)}</span>
+                    {/if}
                   </div>
                 {/if}
               </div>
@@ -477,6 +521,16 @@
     white-space: pre-wrap; word-break: break-word;
     border: 1px solid #3e4451;
   }
+  .msg-skill-badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px; margin-right: 6px;
+    border-radius: 4px;
+    background: rgba(122, 190, 117, 0.12);
+    color: #7abe75;
+    vertical-align: middle;
+  }
   .msg-assistant { display: flex; gap: 12px; padding: 12px 0; }
   .msg-avatar {
     width: 28px; height: 28px; border-radius: 10px;
@@ -534,6 +588,19 @@
   .md :global(summary) { cursor: pointer; font-weight: 500; color: #5c6370; font-size: 13px; user-select: none; }
   .md :global(summary:hover) { color: #7f848e; }
 
+  /* ────────────────── Token Usage ────────────────── */
+  .token-usage {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 0 2px; margin-top: 2px;
+    font-size: 11px; color: #5c6370;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+  }
+  .token-usage svg { opacity: 0.4; flex-shrink: 0; }
+  .token-in { color: #61afef; }
+  .token-out { color: #c678dd; }
+  .token-cache { color: #56b6c2; }
+  .token-cost { color: #e5c07b; font-weight: 600; }
+
   /* ────────────────── Streaming status ────────────────── */
   .streaming-status {
     display: flex; align-items: center; gap: 8px;
@@ -554,74 +621,109 @@
   }
   .status-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 500px; }
 
-  /* ── Subagent Panel ──────────────────────────────────────────────────── */
-  .subagent-team-header {
-    display: flex; align-items: center; gap: 6px;
-    margin-top: 10px; margin-bottom: 2px;
-    font-size: 11px; color: #7f848e;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    font-weight: 500; letter-spacing: 0.02em;
-  }
-  .subagent-team-header svg { opacity: 0.6; }
-  .subagent-grid {
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .subagent-grid.parallel {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px;
-  }
-  .subagent-panel {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: 10px 12px; margin-top: 4px;
-    border: 1px solid; border-radius: 10px;
+  /* ── Subagent Table ──────────────────────────────────────────────────── */
+  .sa-table {
+    margin-top: 8px;
+    border: 1px solid #3e4451;
+    border-radius: 10px;
+    overflow: hidden;
     animation: status-fade-in 200ms ease;
+    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+  }
+  .sa-table-header {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px;
+    font-size: 11px; color: #7f848e; font-weight: 500;
+    background: #282c34;
+    border-bottom: 1px solid #3e4451;
+    letter-spacing: 0.02em;
+  }
+  .sa-table-header svg { opacity: 0.6; }
+  .sa-table-body {
+    display: flex; flex-direction: column;
+  }
+  .sa-row {
+    display: grid;
+    grid-template-columns: minmax(100px, 1.2fr) minmax(120px, 2fr) minmax(80px, 1fr) 52px;
+    gap: 0;
+    align-items: center;
+    min-height: 32px;
+    border-bottom: 1px solid #2e333b;
+  }
+  .sa-row:last-child { border-bottom: none; }
+  .sa-row-head {
+    background: #23272e;
+    min-height: 26px;
+  }
+  .sa-row-head .sa-cell {
+    font-size: 10px;
+    color: #4b5263;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+  }
+  .sa-row:not(.sa-row-head) {
+    background: #2c313a;
+    transition: background 120ms ease;
+  }
+  .sa-row:not(.sa-row-head):hover {
+    background: #31363f;
+  }
+  .sa-cell {
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #abb2bf;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     min-width: 0;
   }
-  .subagent-grid.parallel .subagent-panel {
-    margin-top: 0;
+  .sa-c-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
-  .subagent-header {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12px; font-weight: 600;
-  }
-  .subagent-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    animation: pulse-ring 1.5s ease-in-out infinite;
-  }
-  .subagent-name {
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
-  }
-  .subagent-elapsed {
-    margin-left: auto; font-size: 10px; color: #5c6370;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace; font-weight: 400;
-  }
-  .subagent-desc {
-    font-size: 12px; color: #abb2bf; line-height: 1.5;
-    word-break: break-word;
-  }
-  .subagent-activity {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 11px; color: #7f848e;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
-  }
-  .subagent-pulse {
-    width: 6px; height: 6px; border-radius: 50%;
+  .sa-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
     flex-shrink: 0;
+    background: var(--sa-color, #61afef);
     animation: pulse-ring 1.5s ease-in-out infinite;
   }
-  .subagent-status {
-    word-break: break-word;
+  .sa-name {
+    font-weight: 600;
+    color: var(--sa-color, #61afef);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .subagent-tools {
-    display: flex; gap: 4px; flex-wrap: wrap; margin-top: 2px;
+  .sa-c-status {
+    color: #7f848e;
   }
-  .subagent-tool-chip {
-    display: inline-block; padding: 1px 6px;
-    border: 1px solid; border-radius: 4px;
-    font-size: 10px; color: #7f848e;
-    font-family: 'D2Coding', 'JetBrains Mono', monospace;
+  .sa-status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+  .sa-c-tools {
+    color: #5c6370;
+    font-size: 10px;
+  }
+  .sa-tool-list {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+  }
+  .sa-muted { color: #3e4451; }
+  .sa-c-time {
+    text-align: right;
+    color: #5c6370;
+    font-size: 10px;
+    font-weight: 400;
+    padding-right: 12px;
   }
 
   /* ── Prompt UI ─────────────────────────────────────────────────────────── */

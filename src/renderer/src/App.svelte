@@ -102,7 +102,14 @@
       claudeSessionStore.create(ws.path)
       return
     }
-    // Always create a new Claude Code conversation
+    // Reuse an existing empty conversation for this workspace instead of creating a new one
+    const empty = claudeSessionStore.conversations.find(
+      (c) => c.workspacePath === cwd && c.messages.length === 0 && !c.isStreaming
+    )
+    if (empty) {
+      claudeSessionStore.switchTo(empty.id)
+      return
+    }
     claudeSessionStore.create(cwd)
   }
 

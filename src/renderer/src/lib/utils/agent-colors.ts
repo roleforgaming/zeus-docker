@@ -69,19 +69,58 @@ export function resolveAgentColor(agentName: string, customSkills: CustomSkill[]
 
 // ── Tool Identification ────────────────────────────────────────────────────────
 
-/** Check if a tool name is a subagent Task */
+/** Normalised set of subagent tool names (lowercase for case-insensitive match) */
+const SUBAGENT_TOOLS = new Set(['task', 'delegate_task', 'agents'])
+
+/** Tools used to retrieve or cancel background subagent results */
+const SUBAGENT_AUX_TOOLS = new Set([
+  'taskoutput', 'background_output',
+  'taskcancel', 'background_cancel'
+])
+
+/** Check if a tool name is a subagent/task tool (one that STARTS a subagent) */
 export function isSubagentTool(name: string): boolean {
-  return name === 'Task' || name.startsWith('dispatch_agent') || name === 'Agents'
+  const lower = name.toLowerCase()
+  return SUBAGENT_TOOLS.has(lower) || lower.startsWith('dispatch_agent')
+}
+
+/** Check if a tool is subagent-auxiliary (TaskOutput, background_output, etc.) */
+export function isSubagentAuxTool(name: string): boolean {
+  return SUBAGENT_AUX_TOOLS.has(name.toLowerCase())
+}
+
+/** Human-readable label for a subagent auxiliary tool */
+export function subagentAuxLabel(name: string, input: Record<string, unknown>): string {
+  const lower = name.toLowerCase()
+  if (lower === 'taskoutput' || lower === 'background_output') {
+    const taskId = typeof input.task_id === 'string' ? input.task_id : ''
+    const blocking = input.block === true
+    return blocking
+      ? `Waiting for subagent result${taskId ? ` (${taskId})` : ''}…`
+      : `Checking subagent status${taskId ? ` (${taskId})` : ''}…`
+  }
+  if (lower === 'taskcancel' || lower === 'background_cancel') {
+    return input.all === true ? 'Cancelling all background tasks…' : 'Cancelling background task…'
+  }
+  return name
 }
 
 // ── Name Extraction ────────────────────────────────────────────────────────────
 
 /** Extract a human-readable agent name from the tool name and/or input */
 export function extractSubagentName(toolName: string, input: Record<string, unknown>): string {
+  const lower = toolName.toLowerCase()
+
   // dispatch_agent_frontend_architect → "frontend-architect"
-  if (toolName.startsWith('dispatch_agent_')) {
+  if (lower.startsWith('dispatch_agent_')) {
     return toolName.slice('dispatch_agent_'.length).replace(/_/g, '-')
   }
+
+  // subagent_type is the primary agent role identifier (e.g. "explore", "frontend-ui-ux-engineer")
+  if (typeof input.subagent_type === 'string' && input.subagent_type) {
+    return input.subagent_type.replace(/_/g, '-')
+  }
+
   // Agents tool — input may carry agent_name or name
   if (typeof input.agent_name === 'string' && input.agent_name) {
     return input.agent_name.replace(/_/g, '-')
@@ -89,26 +128,21 @@ export function extractSubagentName(toolName: string, input: Record<string, unkn
   if (typeof input.name === 'string' && input.name) {
     return input.name.replace(/_/g, '-')
   }
-  // Task tool — try to derive a short name from description/prompt
-  const desc = (typeof input.description === 'string' && input.description)
-    || (typeof input.prompt === 'string' && input.prompt)
-    || (typeof input.task_description === 'string' && input.task_description as string)
-    || ''
-  if (desc) {
-    const nameMatch = desc.match(/^([a-z][a-z0-9_-]{2,30})(?:\s|:|$)/i)
-    if (nameMatch) return nameMatch[1].toLowerCase().replace(/_/g, '-')
-    const words = desc.split(/\s+/).slice(0, 3).join(' ')
-    return words.length > 30 ? words.slice(0, 30) + '…' : words
+
+  // category field (delegate_task uses this, e.g. "quick")
+  if (typeof input.category === 'string' && input.category) {
+    return input.category.replace(/_/g, '-')
   }
-  return 'Subagent'
+
+  return ''
 }
 
 /** Extract subagent description from tool input */
 export function extractSubagentDesc(input: Record<string, unknown>): string {
   if (typeof input.description === 'string' && input.description) return input.description
   if (typeof input.prompt === 'string' && input.prompt) {
-    return input.prompt.length > 80 ? input.prompt.slice(0, 80) + '…' : input.prompt
+    return input.prompt.length > 120 ? input.prompt.slice(0, 120) + '…' : input.prompt
   }
   if (typeof input.task_description === 'string') return input.task_description
-  return 'Subagent'
+  return ''
 }

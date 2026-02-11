@@ -3,6 +3,8 @@ import { uiStore } from './ui.svelte.js'
 import { skillsStore } from './skills.svelte.js'
 import {
   isSubagentTool,
+  isSubagentAuxTool,
+  subagentAuxLabel,
   extractSubagentName,
   extractSubagentDesc,
   resolveAgentColor
@@ -74,13 +76,15 @@ function extractText(content: unknown): { text: string; blocks: ContentBlock[] }
   return { text: textParts.join('\n'), blocks }
 }
 
-/** Readable label for a tool name */
+/** Readable label for a tool name (case-insensitive lookup via lowercase keys) */
 const TOOL_LABELS: Record<string, string> = {
-  Read: 'Reading file', Write: 'Writing file', Edit: 'Editing file',
-  MultiEdit: 'Editing file', Bash: 'Running command', Glob: 'Finding files',
-  Grep: 'Searching', LS: 'Listing directory', Browser: 'Browsing',
-  NotebookEdit: 'Editing notebook', TodoRead: 'Reading tasks',
-  TodoWrite: 'Updating tasks', Task: 'Running subagent'
+  read: 'Reading file', write: 'Writing file', edit: 'Editing file',
+  multiedit: 'Editing file', bash: 'Running command', glob: 'Finding files',
+  grep: 'Searching', ls: 'Listing directory', browser: 'Browsing',
+  notebookedit: 'Editing notebook', todoread: 'Reading tasks',
+  todowrite: 'Updating tasks', task: 'Running subagent', delegate_task: 'Running subagent',
+  taskoutput: 'Waiting for subagent', background_output: 'Waiting for subagent',
+  taskcancel: 'Cancelling subagent', background_cancel: 'Cancelling subagent'
 }
 
 /** Resolve agent color using the current skill store data */
@@ -231,7 +235,8 @@ class ClaudeSessionStore {
       streamingStatus: '',
       pendingPrompt: null,
       activeSubagents: [],
-      quickReplies: []
+      quickReplies: [],
+      tokenUsage: null
     }
 
     this.conversations = [...this.conversations, conversation]
@@ -283,7 +288,8 @@ class ClaudeSessionStore {
       streamingStatus: '',
       pendingPrompt: null,
       activeSubagents: [],
-      quickReplies: []
+      quickReplies: [],
+      tokenUsage: null
     }
 
     this.conversations = [...this.conversations, conversation]
@@ -335,11 +341,12 @@ class ClaudeSessionStore {
     // Clear quick replies from previous turn
     conv.quickReplies = []
 
-    // Add user message (show displayContent in UI if provided, otherwise the full prompt)
+    // Add user message — store both the full prompt and the short display label
     const userMsg: ClaudeMessage = {
       id: `msg-${Date.now()}-user`,
       role: 'user',
-      content: displayContent ?? prompt,
+      content: prompt,
+      displayContent: displayContent || undefined,
       timestamp: Date.now()
     }
 
@@ -348,6 +355,7 @@ class ClaudeSessionStore {
     conv.streamingContent = ''
     conv.streamingBlocks = []
     conv.streamingStatus = 'Sending…'
+    conv.tokenUsage = null
 
     // Trigger reactivity
     this.conversations = [...this.conversations]
@@ -443,7 +451,7 @@ class ClaudeSessionStore {
 
   /** Format tool status with detail from input */
   private _formatToolStatus(toolName: string, input: Record<string, unknown>): string {
-    const label = TOOL_LABELS[toolName] || toolName
+    const label = TOOL_LABELS[toolName.toLowerCase()] || toolName
     const detail = input.command ? String(input.command).slice(0, 60)
       : input.file_path ? String(input.file_path)
       : input.pattern ? String(input.pattern)
@@ -451,6 +459,41 @@ class ClaudeSessionStore {
       : input.path ? String(input.path)
       : ''
     return detail ? `${label}: ${detail}` : label
+  }
+
+  /**
+   * Try to extract subagent name/description from accumulated partial JSON.
+   * Called on each input_json_delta for a pending subagent block.
+   */
+  private _tryUpdateSubagentFromPartialInput(
+    conv: ClaudeConversation,
+    pending: { convId: string; subagentId: string; partialJson: string }
+  ): void {
+    const sa = conv.activeSubagents.find((s) => s.id === pending.subagentId)
+    if (!sa) return
+
+    // Try parsing the partial JSON (adding '}' to attempt to close it)
+    let parsed: Record<string, unknown> | null = null
+    try {
+      parsed = JSON.parse(pending.partialJson + '}')
+    } catch {
+      // Also try with '"}' for string fields
+      try { parsed = JSON.parse(pending.partialJson + '"}') } catch { /* still partial */ }
+    }
+    if (!parsed) return
+
+    // Update name if we got a better one
+    const newName = extractSubagentName('task', parsed)
+    if (newName && newName !== sa.name) {
+      sa.name = newName
+      sa.color = getAgentColor(newName)
+    }
+    // Update description
+    const newDesc = extractSubagentDesc(parsed)
+    if (newDesc && newDesc !== sa.description && newDesc !== 'Preparing…') {
+      sa.description = newDesc
+      sa.nestedStatus = 'Preparing…'
+    }
   }
 
   /** Get the last unfinished subagent (avoids repeated .filter() calls in hot path) */
@@ -473,6 +516,13 @@ class ClaudeSessionStore {
       conv.streamingStatus = 'Writing…'
     }
   }
+
+  /**
+   * Track pending subagent tool blocks by content block index.
+   * Key: blockIndex, Value: { convId, subagentId, partialJson }
+   * Used to accumulate input_json_delta and update subagent name/desc once parseable.
+   */
+  private _pendingSubagentInput = new Map<number, { convId: string; subagentId: string; partialJson: string }>()
 
   /** Throttled reactivity trigger — batch rapid streaming events into one update per frame */
   private _reactivityPending = false
@@ -528,6 +578,18 @@ class ClaudeSessionStore {
       conv.streamingBlocks = blocks
       this._updateStatusFromBlocks(conv, blocks, text)
 
+      // Extract token usage from assistant message
+      const msgUsage = (event.message as Record<string, unknown>).usage as Record<string, unknown> | undefined
+      if (msgUsage) {
+        conv.tokenUsage = {
+          inputTokens: (typeof msgUsage.input_tokens === 'number' ? msgUsage.input_tokens : 0),
+          outputTokens: (typeof msgUsage.output_tokens === 'number' ? msgUsage.output_tokens : 0),
+          cacheReadTokens: (typeof msgUsage.cache_read_input_tokens === 'number' ? msgUsage.cache_read_input_tokens : 0),
+          cacheCreateTokens: (typeof msgUsage.cache_creation_input_tokens === 'number' ? msgUsage.cache_creation_input_tokens : 0),
+          totalCostUsd: conv.tokenUsage?.totalCostUsd ?? 0
+        }
+      }
+
       // Detect ALL subagent (Task) tool_use blocks — supports parallel agents
       const knownIds = new Set(conv.activeSubagents.map((s) => s.id))
       for (let i = 0; i < blocks.length; i++) {
@@ -535,32 +597,48 @@ class ClaudeSessionStore {
         if (b.type === 'tool_use' && b.name && isSubagentTool(b.name) && b.input) {
           const blockId = `sa-${i}`
           if (!knownIds.has(blockId)) {
+            // New subagent — snapshot has full input data, so name extraction is reliable here
             const agentName = extractSubagentName(b.name, b.input)
             conv.activeSubagents = [...conv.activeSubagents, {
               id: blockId,
               blockIndex: i,
-              name: agentName,
-              color: getAgentColor(agentName),
-              description: extractSubagentDesc(b.input),
-              nestedStatus: 'Starting…',
+              name: agentName || b.name,
+              color: getAgentColor(agentName || b.name),
+              description: extractSubagentDesc(b.input) || 'Preparing…',
+              nestedStatus: 'Executing…',
               toolsUsed: [],
               startedAt: Date.now(),
               finished: false
             }]
+          } else {
+            // Already known subagent — update name/description if better data now available
+            const existing = conv.activeSubagents.find((s) => s.id === blockId)
+            if (existing && b.input && Object.keys(b.input).length > 0) {
+              const betterName = extractSubagentName(b.name, b.input)
+              if (betterName && (existing.name === b.name || existing.name === 'task' || existing.name === 'delegate_task')) {
+                existing.name = betterName
+                existing.color = getAgentColor(betterName)
+              }
+              const betterDesc = extractSubagentDesc(b.input)
+              if (betterDesc && (existing.description === 'Preparing…' || !existing.description)) {
+                existing.description = betterDesc
+              }
+            }
           }
         }
       }
-      // Detect finished subagents: a tool_result after a Task block means that agent is done
+      // Detect finished subagents: a tool_result after the last Task/aux block means agents are done
       if (conv.activeSubagents.length > 0) {
         let taskResultCount = 0
-        let lastTaskBlockIdx = -1
+        let lastAgentBlockIdx = -1
         for (let i = 0; i < blocks.length; i++) {
-          if (blocks[i].type === 'tool_use' && blocks[i].name && isSubagentTool(blocks[i].name!)) {
-            lastTaskBlockIdx = i
+          const bn = blocks[i].name
+          if (blocks[i].type === 'tool_use' && bn && (isSubagentTool(bn) || isSubagentAuxTool(bn))) {
+            lastAgentBlockIdx = i
           }
         }
-        // Count tool_results after the last task block
-        for (let i = lastTaskBlockIdx + 1; i < blocks.length; i++) {
+        // Count tool_results after the last agent-related tool block
+        for (let i = lastAgentBlockIdx + 1; i < blocks.length; i++) {
           if (blocks[i].type === 'tool_result') taskResultCount++
           if (blocks[i].type === 'text') taskResultCount += conv.activeSubagents.length // text after tasks = all done
         }
@@ -580,21 +658,28 @@ class ClaudeSessionStore {
 
         if (isSubagentTool(cb.name)) {
           // New subagent starting — add to array (don't overwrite)
+          // Note: input is usually {} here; real data arrives via input_json_delta
           const agentName = extractSubagentName(cb.name, input)
           if (!conv.activeSubagents.some((s) => s.id === blockId)) {
             conv.activeSubagents = [...conv.activeSubagents, {
               id: blockId,
               blockIndex,
-              name: agentName,
-              color: getAgentColor(agentName),
-              description: extractSubagentDesc(input),
+              name: agentName || cb.name,
+              color: getAgentColor(agentName || cb.name),
+              description: extractSubagentDesc(input) || 'Preparing…',
               nestedStatus: 'Starting…',
               toolsUsed: [],
               startedAt: Date.now(),
               finished: false
             }]
+            // Register for input_json_delta tracking
+            this._pendingSubagentInput.set(blockIndex, { convId: id, subagentId: blockId, partialJson: '' })
           }
           conv.streamingStatus = this._formatToolStatus(cb.name, input)
+        } else if (isSubagentAuxTool(cb.name)) {
+          // TaskOutput / background_output / background_cancel — show as subagent status
+          conv.streamingStatus = subagentAuxLabel(cb.name, input)
+          // Keep any existing active subagents alive during this wait
         } else if (conv.activeSubagents.length > 0) {
           // Tool inside a subagent — update the most recently started (unfinished) agent
           const target = this._lastRunningAgent(conv)
@@ -622,6 +707,8 @@ class ClaudeSessionStore {
     } else if (event.type === 'content_block_delta') {
       // Incremental delta for a content block
       const delta = any.delta as Record<string, unknown> | undefined
+      const deltaIndex = typeof any.index === 'number' ? (any.index as number) : -1
+
       if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
         conv.streamingContent += delta.text
         // Prevent unbounded memory growth during very long streaming responses
@@ -632,11 +719,35 @@ class ClaudeSessionStore {
       } else if (delta?.type === 'thinking_delta') {
         conv.streamingStatus = 'Thinking…'
       } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
-        // Tool input being streamed — update status with partial info
+        // Tool input being streamed — accumulate for pending subagent blocks
+        const pending = this._pendingSubagentInput.get(deltaIndex)
+        if (pending) {
+          pending.partialJson += delta.partial_json
+          // Try to extract subagent name/description from partial JSON
+          this._tryUpdateSubagentFromPartialInput(conv, pending)
+        }
         conv.streamingStatus = conv.streamingStatus || 'Processing…'
       }
 
     } else if (event.type === 'content_block_stop') {
+      const stopIndex = typeof any.index === 'number' ? (any.index as number) : -1
+      // If this was a subagent tool block, finalize input parsing and mark as executing
+      const pending = this._pendingSubagentInput.get(stopIndex)
+      if (pending) {
+        // Final parse attempt with the complete JSON
+        try {
+          const fullInput = JSON.parse(pending.partialJson) as Record<string, unknown>
+          const sa = conv.activeSubagents.find((s) => s.id === pending.subagentId)
+          if (sa) {
+            const name = extractSubagentName('task', fullInput)
+            if (name) { sa.name = name; sa.color = getAgentColor(name) }
+            const desc = extractSubagentDesc(fullInput)
+            if (desc) sa.description = desc
+            sa.nestedStatus = 'Executing…'
+          }
+        } catch { /* partial json, already handled incrementally */ }
+        this._pendingSubagentInput.delete(stopIndex)
+      }
       // Block finished — status will be updated by next block or result
       const lastAgent = this._lastRunningAgent(conv)
       conv.streamingStatus = lastAgent ? (lastAgent.nestedStatus || 'Processing…') : 'Processing…'
@@ -646,8 +757,21 @@ class ClaudeSessionStore {
       if (typeof event.result === 'string' && event.result) {
         conv.streamingContent = event.result
       }
+      // Capture final usage from result event
+      const resUsage = any.usage as Record<string, unknown> | undefined
+      const totalCost = typeof any.total_cost_usd === 'number' ? any.total_cost_usd : 0
+      if (resUsage || totalCost) {
+        conv.tokenUsage = {
+          inputTokens: (typeof resUsage?.input_tokens === 'number' ? resUsage.input_tokens : conv.tokenUsage?.inputTokens ?? 0),
+          outputTokens: (typeof resUsage?.output_tokens === 'number' ? resUsage.output_tokens : conv.tokenUsage?.outputTokens ?? 0),
+          cacheReadTokens: (typeof resUsage?.cache_read_input_tokens === 'number' ? resUsage.cache_read_input_tokens : conv.tokenUsage?.cacheReadTokens ?? 0),
+          cacheCreateTokens: (typeof resUsage?.cache_creation_input_tokens === 'number' ? resUsage.cache_creation_input_tokens : conv.tokenUsage?.cacheCreateTokens ?? 0),
+          totalCostUsd: totalCost || conv.tokenUsage?.totalCostUsd || 0
+        }
+      }
       conv.streamingStatus = ''
       conv.activeSubagents = []
+      this._pendingSubagentInput.clear()
 
     } else if (event.type === 'system') {
       conv.streamingStatus = 'Initializing…'
@@ -738,9 +862,10 @@ class ClaudeSessionStore {
     if (conv.title === 'Claude Code' && conv.messages.length >= 1) {
       const firstUser = conv.messages.find((m) => m.role === 'user')
       if (firstUser) {
-        conv.title = firstUser.content.length > 30
-          ? firstUser.content.slice(0, 30) + '…'
-          : firstUser.content
+        const display = firstUser.displayContent || firstUser.content
+        conv.title = display.length > 30
+          ? display.slice(0, 30) + '…'
+          : display
       }
     }
 
