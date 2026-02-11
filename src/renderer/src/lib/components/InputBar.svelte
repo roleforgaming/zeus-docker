@@ -5,7 +5,6 @@
   import { markdownStore } from '../stores/markdown.svelte.js'
   import { terminalStore } from '../stores/terminal.svelte.js'
   import { uiStore, AVAILABLE_MODELS } from '../stores/ui.svelte.js'
-  import IconClaude from './icons/IconClaude.svelte'
   import IconAnthropic from './icons/IconAnthropic.svelte'
 
   let { ontoggleChanges }: { ontoggleChanges?: () => void } = $props()
@@ -745,11 +744,6 @@
   {/if}
 
   <div class="input-row">
-    <div class="mode-icon">
-      <IconClaude size={16} />
-    </div>
-    <span class="prompt">{'>'}</span>
-
     <!-- Command tag chip -->
     {#if commandTag}
       <div class="command-tag {kindClass(commandTag.kind)}">
@@ -788,7 +782,7 @@
         disabled={!canSend}
         title="Send (Enter)"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
       </button>
     {/if}
   </div>
@@ -915,7 +909,7 @@
 
   .input-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     background: #2c313a;
     border: 1px solid #3e4451;
@@ -927,19 +921,6 @@
   .input-row:focus-within {
     border-color: #c678dd;
     box-shadow: 0 0 0 2px rgba(198, 120, 221, 0.1);
-  }
-
-  .mode-icon {
-    display: flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: 8px;
-    background: rgba(198, 120, 221, 0.1); color: #c678dd; flex-shrink: 0;
-  }
-
-  .prompt {
-    font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
-    font-size: 14px; font-weight: 600;
-    color: #c678dd; flex-shrink: 0; line-height: 28px;
-    user-select: none;
   }
 
   /* ── Command tag chip ── */
@@ -1015,6 +996,7 @@
     background: #3e4451; color: #4b5263; cursor: default;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; transition: all 150ms ease;
+    align-self: flex-end;
   }
   .send-btn.active {
     background: #c678dd; color: #1e2127; cursor: pointer;
