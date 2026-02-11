@@ -98,9 +98,9 @@
   }
   .tab-btn:hover { color: #abb2bf; background: #2c313a; }
   .tab-btn.active {
-    color: #c678dd;
-    border-bottom-color: #c678dd;
-    background: rgba(198, 120, 221, 0.06);
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--accent-bg-subtle);
   }
 
   .panel-body {

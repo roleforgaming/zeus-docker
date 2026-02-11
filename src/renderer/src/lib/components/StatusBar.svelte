@@ -52,5 +52,5 @@
     display: flex; align-items: center; gap: 4px;
     transition: all 120ms ease;
   }
-  .claude-ver:hover { background: #2c313a; color: #c678dd; }
+  .claude-ver:hover { background: #2c313a; color: var(--accent); }
 </style>

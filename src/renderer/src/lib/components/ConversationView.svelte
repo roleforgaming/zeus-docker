@@ -226,6 +226,11 @@
   ondragleave={(e) => { const related = e.relatedTarget as HTMLElement | null; if (!related || !(e.currentTarget as HTMLElement).contains(related)) isDragOverView = false }}
   ondrop={(e) => { e.preventDefault(); isDragOverView = false; inputBarRef?.handleFileDrop(e) }}
 >
+  <!-- Streaming progress bar -->
+  {#if conv?.isStreaming}
+    <div class="stream-progress"><div class="stream-progress-bar"></div></div>
+  {/if}
+
   {#if isDragOverView}
     <div class="view-drop-overlay">
       <div class="view-drop-box">
@@ -470,6 +475,27 @@
   }
   .conversation-view.hidden { display: none; }
 
+  /* ── Streaming progress bar ── */
+  .stream-progress {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    z-index: 20;
+    overflow: hidden;
+    background: var(--accent-bg-subtle);
+  }
+  .stream-progress-bar {
+    height: 100%;
+    width: 40%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent) 30%, #61afef 70%, transparent);
+    animation: stream-slide 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  @keyframes stream-slide {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+  }
+
   .view-drop-overlay {
     position: absolute; inset: 0; z-index: 50;
     display: flex; align-items: center; justify-content: center;
@@ -500,8 +526,8 @@
   .welcome-icon {
     display: inline-flex; align-items: center; justify-content: center;
     width: 64px; height: 64px; border-radius: 20px;
-    background: rgba(198, 120, 221, 0.1);
-    color: #c678dd; margin-bottom: 20px;
+    background: var(--accent-glow);
+    color: var(--accent); margin-bottom: 20px;
   }
   .welcome h2 {
     font-size: 24px; font-weight: 600; color: #abb2bf;
@@ -535,7 +561,7 @@
   .msg-avatar {
     width: 28px; height: 28px; border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(198, 120, 221, 0.1); color: #c678dd;
+    background: var(--accent-glow); color: var(--accent);
     flex-shrink: 0; margin-top: 2px;
   }
   .msg-content { flex: 1; min-width: 0; padding-top: 2px; }
@@ -597,7 +623,7 @@
   }
   .token-usage svg { opacity: 0.4; flex-shrink: 0; }
   .token-in { color: #61afef; }
-  .token-out { color: #c678dd; }
+  .token-out { color: var(--accent); }
   .token-cache { color: #56b6c2; }
   .token-cost { color: #e5c07b; font-weight: 600; }
 
@@ -612,7 +638,7 @@
   .status-indicator { position: relative; width: 8px; height: 8px; flex-shrink: 0; }
   .pulse {
     display: block; width: 8px; height: 8px; border-radius: 50%;
-    background: #c678dd; animation: pulse-ring 1.5s ease-in-out infinite;
+    background: var(--accent); animation: pulse-ring 1.5s ease-in-out infinite;
   }
   @keyframes pulse-ring {
     0% { opacity: 0.4; transform: scale(0.8); }
@@ -749,7 +775,7 @@
     overflow-wrap: break-word; word-break: break-word;
   }
   .prompt-tool code {
-    color: #c678dd; font-family: 'D2Coding', 'JetBrains Mono', monospace;
+    color: var(--accent); font-family: 'D2Coding', 'JetBrains Mono', monospace;
     font-size: 12px; background: none; padding: 0;
   }
   .prompt-tool-input {

@@ -91,7 +91,7 @@
         <!-- Update available -->
         {:else if phase === 'update-available'}
           <div class="result-block update-available">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c678dd" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <div class="result-info">
               <p class="result-title">Update available</p>
               <div class="version-compare">
@@ -180,7 +180,7 @@
 
   .spinner {
     width: 18px; height: 18px; border: 2px solid #3e4451;
-    border-top-color: #c678dd; border-radius: 50%;
+    border-top-color: var(--accent); border-radius: 50%;
     animation: spin 0.8s linear infinite; flex-shrink: 0;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -219,10 +219,10 @@
   .btn.secondary { background: transparent; color: #7f848e; }
   .btn.secondary:hover { background: #3e4451; color: #abb2bf; }
   .btn.primary {
-    background: rgba(198, 120, 221, 0.12); border-color: rgba(198, 120, 221, 0.25);
-    color: #c678dd;
+    background: var(--accent-bg); border-color: var(--accent-border);
+    color: var(--accent);
   }
-  .btn.primary:hover { background: rgba(198, 120, 221, 0.2); }
+  .btn.primary:hover { background: var(--accent-bg-hover); }
 
   .output {
     margin-top: 8px;

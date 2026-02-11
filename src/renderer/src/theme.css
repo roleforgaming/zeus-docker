@@ -1,0 +1,81 @@
+/*
+ * Zeus Theme — CSS Custom Properties
+ * ────────────────────────────────────
+ * Single source of truth for all colors.
+ * To create a new theme, override these variables.
+ */
+
+:root {
+  /* ── Brand / Accent (Claude terracotta) ── */
+  --accent:           #D97757;
+  --accent-hover:     #E8956E;
+  --accent-light:     #F0B89A;
+  --accent-bg:        rgba(217, 119, 87, 0.12);
+  --accent-bg-hover:  rgba(217, 119, 87, 0.20);
+  --accent-bg-subtle: rgba(217, 119, 87, 0.06);
+  --accent-border:    rgba(217, 119, 87, 0.25);
+  --accent-border-strong: rgba(217, 119, 87, 0.45);
+  --accent-glow:      rgba(217, 119, 87, 0.10);
+
+  /* ── Backgrounds ── */
+  --bg-base:       #282c34;
+  --bg-raised:     #2c313a;
+  --bg-surface:    #21252b;
+  --bg-deep:       #1e2127;
+  --bg-overlay:    #23272e;
+  --bg-hover:      #31363f;
+  --bg-inset:      #2c2d31;
+
+  /* ── Borders ── */
+  --border:        #3e4451;
+  --border-subtle: #2e333b;
+  --border-strong: #4b5263;
+  --border-muted:  #3e4045;
+
+  /* ── Text ── */
+  --text-primary:   #abb2bf;
+  --text-bright:    #d4d8e0;
+  --text-secondary: #7f848e;
+  --text-muted:     #5c6370;
+  --text-hint:      #4b5263;
+  --text-dim:       #8b919d;
+
+  /* ── Semantic: Success / Green ── */
+  --green:        #98c379;
+  --green-bright: #b5e08c;
+  --green-soft:   #7abe75;
+  --green-bg:     rgba(152, 195, 121, 0.12);
+
+  /* ── Semantic: Error / Red ── */
+  --red:          #e06c75;
+  --red-hover:    #e88990;
+  --red-bg:       rgba(224, 108, 117, 0.12);
+
+  /* ── Semantic: Warning / Yellow ── */
+  --yellow:       #e5c07b;
+  --yellow-bg:    rgba(229, 192, 123, 0.10);
+
+  /* ── Semantic: Info / Blue ── */
+  --blue:         #61afef;
+  --blue-bright:  #7cc3f5;
+  --blue-bg:      rgba(97, 175, 239, 0.10);
+  --blue-border:  rgba(97, 175, 239, 0.20);
+
+  /* ── Semantic: Cyan ── */
+  --cyan:         #56b6c2;
+
+  /* ── Semantic: Orange (distinct from accent for data/tags) ── */
+  --orange:       #d19a66;
+  --orange-warm:  #d0966a;
+
+  /* ── Font stacks ── */
+  --font-sans:  'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui,
+                'Noto Sans KR', 'Segoe UI', Inter, Roboto, sans-serif;
+  --font-mono:  'D2Coding', 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  /* ── Spacing / Radius ── */
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  12px;
+  --radius-xl:  18px;
+}

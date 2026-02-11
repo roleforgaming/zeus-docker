@@ -44,7 +44,7 @@
     border-radius: 4px; font-family: inherit;
     transition: background 120ms ease;
   }
-  .item:hover { background: rgba(198, 120, 221, 0.1); color: #c678dd; }
+  .item:hover { background: var(--accent-glow); color: var(--accent); }
   .item.danger:hover { background: rgba(240, 96, 96, 0.1); color: #e06c75; }
   .divider { height: 1px; background: #3e4451; margin: 4px 8px; }
 </style>

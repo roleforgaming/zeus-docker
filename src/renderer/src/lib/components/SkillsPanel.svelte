@@ -415,7 +415,7 @@
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
     width: 20px; height: 20px; border: 2px solid #4b5263;
-    border-top-color: #c678dd; border-radius: 50%;
+    border-top-color: var(--accent); border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -442,7 +442,7 @@
   }
   .kind-badge.skill { color: #7abe75; }
   .kind-badge.agent { color: #70a0d0; }
-  .kind-badge.command { color: #c678dd; }
+  .kind-badge.command { color: var(--accent); }
   .user-section { color: #4b5263; }
 
   /* ── Group headers (subdir folders within commands/) ── */
@@ -480,7 +480,7 @@
     width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
   .cmd-name {
-    font-size: 13px; font-weight: 600; color: #c678dd;
+    font-size: 13px; font-weight: 600; color: var(--accent);
     font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
   }
   .cmd-origin {
@@ -521,7 +521,7 @@
   .empty-desc code {
     background: #2c313a; padding: 1px 5px; border-radius: 3px;
     font-size: 11px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    color: #c678dd;
+    color: var(--accent);
   }
 
   /* ── Built-in / MCP skill items ── */
@@ -559,9 +559,9 @@
     background: #7f848e; top: 2px; left: 2px;
     transition: transform 200ms ease, background 200ms ease;
   }
-  .toggle.on .toggle-slider { background: rgba(198, 120, 221, 0.3); }
+  .toggle.on .toggle-slider { background: var(--accent-border); }
   .toggle.on .toggle-slider::after {
-    transform: translateX(16px); background: #c678dd;
+    transform: translateX(16px); background: var(--accent);
   }
 
 </style>

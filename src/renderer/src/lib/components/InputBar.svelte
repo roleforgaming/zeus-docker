@@ -890,7 +890,7 @@
     </div>
   {/if}
 
-  <div class="input-row">
+  <div class="input-row" class:streaming={isStreaming}>
     <!-- Command tag chip -->
     {#if commandTag}
       <div class="command-tag {kindClass(commandTag.kind)}">
@@ -1073,8 +1073,25 @@
     transition: border-color 200ms ease, box-shadow 200ms ease;
   }
   .input-row:focus-within {
-    border-color: #c678dd;
-    box-shadow: 0 0 0 2px rgba(198, 120, 221, 0.1);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  .input-row.streaming {
+    border-color: var(--accent-border);
+    animation: input-glow 2.5s ease-in-out infinite;
+  }
+  .input-row.streaming:focus-within {
+    animation: input-glow 2.5s ease-in-out infinite;
+  }
+  @keyframes input-glow {
+    0%, 100% {
+      border-color: var(--accent-bg-hover);
+      box-shadow: 0 0 0 1px var(--accent-bg-subtle);
+    }
+    50% {
+      border-color: var(--accent-border-strong);
+      box-shadow: 0 0 8px var(--accent-glow), 0 0 0 1px var(--accent-glow);
+    }
   }
 
   /* ── Command tag chip ── */
@@ -1096,9 +1113,9 @@
     to { opacity: 1; transform: scale(1); }
   }
   .command-tag.kind-command {
-    background: rgba(198, 120, 221, 0.12);
-    color: #c678dd;
-    border: 1px solid rgba(198, 120, 221, 0.25);
+    background: var(--accent-bg);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
   }
   .command-tag.kind-skill {
     background: rgba(122, 190, 117, 0.12);
@@ -1153,9 +1170,9 @@
     align-self: flex-end;
   }
   .send-btn.active {
-    background: #c678dd; color: #1e2127; cursor: pointer;
+    background: var(--accent); color: #1e2127; cursor: pointer;
   }
-  .send-btn.active:hover { background: #d19eee; }
+  .send-btn.active:hover { background: var(--accent-hover); }
   .send-btn.abort {
     background: #e06c75; color: #1e2127; cursor: pointer;
   }
@@ -1214,13 +1231,13 @@
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
     font-size: 13px;
     font-weight: 600;
-    color: #c678dd;
+    color: var(--accent);
     white-space: nowrap;
     flex-shrink: 0;
   }
   .slash-item.selected .slash-cmd,
   .slash-item:hover .slash-cmd {
-    color: #d19eee;
+    color: var(--accent-hover);
   }
 
   .slash-badge {
@@ -1412,7 +1429,7 @@
     transition: background 100ms ease;
   }
   .model-option:hover { background: #3e4451; color: #abb2bf; }
-  .model-option.active { color: #c678dd; }
+  .model-option.active { color: var(--accent); }
 
   .model-ver {
     font-size: 10px; color: #5c6370; font-weight: 400;
@@ -1430,10 +1447,10 @@
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
     flex-shrink: 0;
   }
-  .model-option.active .model-version { color: #c678dd; background: rgba(198, 120, 221, 0.1); }
+  .model-option.active .model-version { color: var(--accent); background: var(--accent-glow); }
   .model-desc {
     font-size: 10px; color: #4b5263; flex: 1;
   }
   .model-option.active .model-desc { color: #5c6370; }
-  .check { color: #c678dd; flex-shrink: 0; }
+  .check { color: var(--accent); flex-shrink: 0; }
 </style>

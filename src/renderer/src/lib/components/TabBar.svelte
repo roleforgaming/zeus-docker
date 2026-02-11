@@ -171,13 +171,13 @@
   .tab-body { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
   .tab-icon { display: flex; align-items: center; }
-  .tab-icon.claude { color: #c678dd; }
+  .tab-icon.claude { color: var(--accent); }
   .tab-icon.terminal { color: #61afef; }
   .tab-icon.doc { color: #61afef; }
 
   .streaming-dot {
     width: 6px; height: 6px; border-radius: 50%;
-    background: #c678dd; flex-shrink: 0;
+    background: var(--accent); flex-shrink: 0;
     animation: stream-pulse 1.2s ease-in-out infinite;
   }
   @keyframes stream-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }

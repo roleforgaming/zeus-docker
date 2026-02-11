@@ -883,7 +883,7 @@
     cursor: pointer; font-family: inherit; transition: all 120ms ease;
   }
   .ptab:hover { color: #d4d8e0; }
-  .ptab.active { color: #c678dd; border-bottom-color: #c678dd; }
+  .ptab.active { color: var(--accent); border-bottom-color: var(--accent); }
   .ptab-count {
     background: #3e4451; color: #abb2bf; font-size: 9px; padding: 1px 5px;
     border-radius: 8px; font-weight: 600;
@@ -896,7 +896,7 @@
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
     width: 20px; height: 20px; border: 2px solid #4b5263;
-    border-top-color: #c678dd; border-radius: 50%;
+    border-top-color: var(--accent); border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -906,11 +906,11 @@
   .hint-text { font-size: 11px; color: #7f848e; }
 
   .link-btn {
-    border: none; background: none; color: #c678dd; cursor: pointer;
+    border: none; background: none; color: var(--accent); cursor: pointer;
     font-family: inherit; font-size: 11px; text-decoration: underline;
     padding: 0;
   }
-  .link-btn:hover { color: #d19eee; }
+  .link-btn:hover { color: var(--accent-hover); }
 
   /* ── Server cards (Installed + Plugins) ── */
   .server-list { display: flex; flex-direction: column; gap: 8px; }
@@ -1002,11 +1002,11 @@
   }
   .config-label-row .config-label { margin-bottom: 0; }
   .edit-link {
-    border: none; background: none; color: #d19eee; cursor: pointer;
+    border: none; background: none; color: var(--accent-hover); cursor: pointer;
     font-family: inherit; font-size: 10px; font-weight: 600;
     padding: 0; text-decoration: underline; text-underline-offset: 2px;
   }
-  .edit-link:hover { color: #c678dd; }
+  .edit-link:hover { color: var(--accent); }
   .edit-field { margin-bottom: 6px; }
   .edit-field-label {
     display: block; font-size: 9px; color: #7f848e; margin-bottom: 2px;
@@ -1025,10 +1025,10 @@
   }
   .btn-sm.secondary:hover { background: #2c313a; color: #d4d8e0; }
   .btn-sm.primary {
-    background: rgba(198, 120, 221, 0.15); border: 1px solid rgba(198, 120, 221, 0.4);
-    color: #d19eee;
+    background: var(--accent-bg-hover); border: 1px solid var(--accent-border-strong);
+    color: var(--accent-hover);
   }
-  .btn-sm.primary:hover { background: rgba(198, 120, 221, 0.25); }
+  .btn-sm.primary:hover { background: var(--accent-border); }
   .env-row {
     display: flex; align-items: center; gap: 6px; padding: 4px 0;
     font-size: 12px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
@@ -1069,7 +1069,7 @@
     font-size: 13px; font-family: 'D2Coding', 'JetBrains Mono', 'SF Mono', monospace;
     outline: none; box-sizing: border-box;
   }
-  .form-input:focus { border-color: #c678dd; }
+  .form-input:focus { border-color: var(--accent); }
   .form-input::placeholder { color: #5c6370; }
   .form-input.small { padding: 5px 8px; font-size: 12px; }
 
@@ -1082,8 +1082,8 @@
   }
   .transport-btn:hover { border-color: #7f848e; color: #d4d8e0; }
   .transport-btn.active {
-    border-color: #c678dd; color: #c678dd;
-    background: rgba(198, 120, 221, 0.1);
+    border-color: var(--accent); color: var(--accent);
+    background: var(--accent-glow);
   }
   .t-icon { font-size: 12px; }
 
@@ -1100,24 +1100,24 @@
   .btn.secondary { background: transparent; color: #abb2bf; }
   .btn.secondary:hover { background: #3e4451; color: #d4d8e0; }
   .btn.primary {
-    background: rgba(198, 120, 221, 0.15); border-color: rgba(198, 120, 221, 0.4);
-    color: #d19eee;
+    background: var(--accent-bg-hover); border-color: var(--accent-border-strong);
+    color: var(--accent-hover);
   }
-  .btn.primary:hover { background: rgba(198, 120, 221, 0.25); }
+  .btn.primary:hover { background: var(--accent-border); }
   .btn:disabled { opacity: 0.5; cursor: default; }
 
   .quick-tip {
     margin-top: 12px; padding: 10px 12px;
-    border-radius: 6px; background: rgba(198, 120, 221, 0.06);
-    border: 1px solid rgba(198, 120, 221, 0.12);
+    border-radius: 6px; background: var(--accent-bg-subtle);
+    border: 1px solid var(--accent-bg);
   }
   .quick-tip p {
     font-size: 11px; color: #8b919d; line-height: 1.5; margin: 0;
   }
   .quick-tip code {
     font-family: 'D2Coding', 'JetBrains Mono', monospace;
-    font-size: 11px; color: #d19eee;
-    background: rgba(198, 120, 221, 0.1); padding: 1px 4px; border-radius: 3px;
+    font-size: 11px; color: var(--accent-hover);
+    background: var(--accent-glow); padding: 1px 4px; border-radius: 3px;
   }
 
   /* ── Marketplace / Discover ── */
@@ -1168,8 +1168,8 @@
     border: 1px solid transparent;
   }
   .badge-plugin {
-    color: #d19eee; background: rgba(198, 120, 221, 0.15);
-    border-color: rgba(198, 120, 221, 0.3);
+    color: var(--accent-hover); background: var(--accent-bg-hover);
+    border-color: var(--accent-border);
   }
   .badge-http {
     color: #7cc3f5; background: rgba(97, 175, 239, 0.12);
@@ -1191,12 +1191,12 @@
 
   .market-item-action { flex-shrink: 0; }
   .install-btn {
-    padding: 4px 14px; border: 1px solid rgba(198, 120, 221, 0.45);
-    border-radius: 10px; background: rgba(198, 120, 221, 0.15);
-    color: #d19eee; font-size: 11px; font-weight: 700;
+    padding: 4px 14px; border: 1px solid var(--accent-border-strong);
+    border-radius: 10px; background: var(--accent-bg-hover);
+    color: var(--accent-hover); font-size: 11px; font-weight: 700;
     cursor: pointer; font-family: inherit; transition: all 120ms ease;
   }
-  .install-btn:hover { background: rgba(198, 120, 221, 0.28); border-color: #c678dd; color: #e0c0f5; }
+  .install-btn:hover { background: var(--accent-border); border-color: var(--accent); color: var(--accent-light); }
   .install-btn:disabled { opacity: 0.5; cursor: default; }
 
   .installed-badge {
@@ -1211,9 +1211,9 @@
     margin-top: 8px;
   }
   .market-link {
-    font-size: 11px; color: #d19eee; text-decoration: none; font-weight: 500;
+    font-size: 11px; color: var(--accent-hover); text-decoration: none; font-weight: 500;
   }
-  .market-link:hover { text-decoration: underline; color: #c678dd; }
+  .market-link:hover { text-decoration: underline; color: var(--accent); }
 
   /* ── Plugin toggle ── */
   .toggle-btn {
@@ -1234,7 +1234,7 @@
   .toggle-btn.enabled .toggle-thumb { left: 18px; background: #fff; }
   .spinner-sm {
     width: 12px; height: 12px; border: 2px solid #5c6370;
-    border-top-color: #c678dd; border-radius: 50%;
+    border-top-color: var(--accent); border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
 
@@ -1287,7 +1287,7 @@
     font-size: 11px; font-family: 'D2Coding', 'JetBrains Mono', monospace;
     outline: none; cursor: pointer;
   }
-  .scope-select:focus { border-color: #c678dd; }
+  .scope-select:focus { border-color: var(--accent); }
 
   .mp-row {
     display: flex; align-items: center; gap: 8px;
@@ -1314,7 +1314,7 @@
   .market-section-header {
     display: flex; align-items: center; gap: 6px;
     padding: 10px 8px 6px; font-size: 13px; font-weight: 700;
-    color: #d19eee; margin-top: 4px;
+    color: var(--accent-hover); margin-top: 4px;
   }
   .market-section-header.mcp-header {
     margin-top: 12px; padding-top: 14px;

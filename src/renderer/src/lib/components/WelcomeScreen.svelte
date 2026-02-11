@@ -47,7 +47,7 @@
     background: #282c34;
   }
   .content { text-align: center; max-width: 480px; }
-  .icon { color: #c678dd; margin-bottom: 20px; opacity: 0.9; }
+  .icon { color: var(--accent); margin-bottom: 20px; opacity: 0.9; }
   h1 { font-size: 28px; font-weight: 600; color: #abb2bf; margin-bottom: 8px; letter-spacing: -0.02em; }
   .subtitle { font-size: 15px; color: #7f848e; margin-bottom: 32px; }
 
@@ -62,13 +62,13 @@
   }
   .btn:hover { background: #3e4451; border-color: #4b5263; transform: translateY(-1px); }
   .btn.primary {
-    background: rgba(198, 120, 221, 0.12);
-    border-color: rgba(198, 120, 221, 0.3);
-    color: #c678dd;
+    background: var(--accent-bg);
+    border-color: var(--accent-border);
+    color: var(--accent);
   }
   .btn.primary:hover {
-    background: rgba(198, 120, 221, 0.2);
-    border-color: #c678dd;
+    background: var(--accent-bg-hover);
+    border-color: var(--accent);
   }
 
   .shortcuts { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: center; }

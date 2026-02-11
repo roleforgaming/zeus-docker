@@ -144,7 +144,7 @@
   .loading { display: flex; justify-content: center; padding: 32px; }
   .spinner {
     width: 18px; height: 18px; border: 2px solid #4b5263;
-    border-top-color: #c678dd; border-radius: 50%;
+    border-top-color: var(--accent); border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -223,8 +223,8 @@
     border-left-color: #4b5263;
   }
   .file-item.active {
-    background: rgba(198, 120, 221, 0.07);
-    border-left-color: #c678dd;
+    background: var(--accent-bg-subtle);
+    border-left-color: var(--accent);
   }
 
   .file-left {
@@ -233,7 +233,7 @@
   }
 
   .file-icon { color: #61afef; flex-shrink: 0; margin-top: 1px; }
-  .file-item.active .file-icon { color: #c678dd; }
+  .file-item.active .file-icon { color: var(--accent); }
 
   .file-info {
     display: flex; flex-direction: column; gap: 1px; min-width: 0;

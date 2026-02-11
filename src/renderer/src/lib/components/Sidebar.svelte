@@ -282,7 +282,7 @@
   .sidebar-header { padding: 14px 16px 12px; border-bottom: 1px solid #181a1f; }
   .sidebar-logo {
     display: flex; align-items: center; gap: 10px;
-    color: #c678dd; font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
+    color: var(--accent); font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
   }
 
   /* ── Workspace dropdown ── */
@@ -300,7 +300,7 @@
   .ws-trigger-icon {
     width: 28px; height: 28px; border-radius: 6px;
     background: #3e4451; display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0; color: #c678dd; font-size: 13px; font-weight: 600;
+    flex-shrink: 0; color: var(--accent); font-size: 13px; font-weight: 600;
     font-family: 'D2Coding', 'JetBrains Mono', monospace; text-transform: uppercase;
   }
   .ws-trigger-icon.empty { color: #5c6370; }
@@ -334,7 +334,7 @@
     text-align: left; transition: background 100ms ease;
   }
   .ws-menu-item:hover { background: #3e4451; }
-  .ws-menu-item.active { background: rgba(198, 120, 221, 0.1); }
+  .ws-menu-item.active { background: var(--accent-glow); }
 
   .ws-menu-icon {
     width: 24px; height: 24px; border-radius: 5px;
@@ -342,7 +342,7 @@
     flex-shrink: 0; color: #7f848e; font-size: 11px; font-weight: 600;
     font-family: 'D2Coding', 'JetBrains Mono', monospace; text-transform: uppercase;
   }
-  .ws-menu-icon.active { background: rgba(198, 120, 221, 0.15); color: #c678dd; }
+  .ws-menu-icon.active { background: var(--accent-bg-hover); color: var(--accent); }
 
   .ws-menu-info { flex: 1; min-width: 0; }
   .ws-menu-name {
@@ -376,7 +376,7 @@
   .ws-menu-item.rename-row:hover { background: transparent; }
   .ws-rename-input {
     flex: 1; min-width: 0; padding: 4px 8px;
-    background: #1e2127; border: 1px solid #c678dd; border-radius: 4px;
+    background: #1e2127; border: 1px solid var(--accent); border-radius: 4px;
     color: #abb2bf; font-size: 12px; font-weight: 500;
     font-family: inherit; outline: none;
   }
@@ -405,8 +405,8 @@
     color: #5c6370; border-radius: 5px; cursor: pointer; transition: all 120ms ease;
   }
   .ses-btn:hover { background: #3e4451; color: #abb2bf; }
-  .ses-btn.claude-accent { color: #c678dd; }
-  .ses-btn.claude-accent:hover { background: rgba(198, 120, 221, 0.12); color: #d19eee; }
+  .ses-btn.claude-accent { color: var(--accent); }
+  .ses-btn.claude-accent:hover { background: var(--accent-bg); color: var(--accent-hover); }
 
   .sessions-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }
 
@@ -421,7 +421,7 @@
   .session-item.active { background: #2c313a; color: #abb2bf; }
 
   .session-icon { display: flex; align-items: center; flex-shrink: 0; }
-  .session-icon.claude { color: #c678dd; }
+  .session-icon.claude { color: var(--accent); }
   .session-icon.claude.muted { color: #8a5eaa; }
   .session-icon.terminal { color: #61afef; }
 
@@ -429,7 +429,7 @@
 
   .streaming-dot {
     width: 6px; height: 6px; border-radius: 50%;
-    background: #c678dd; flex-shrink: 0;
+    background: var(--accent); flex-shrink: 0;
     animation: stream-pulse 1.2s ease-in-out infinite;
   }
   @keyframes stream-pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }

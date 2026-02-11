@@ -300,8 +300,8 @@
   }
   .file-item:hover { background: #2c313a; }
   .file-item.active {
-    background: rgba(198, 120, 221, 0.08);
-    border-left: 2px solid #c678dd;
+    background: var(--accent-bg-subtle);
+    border-left: 2px solid var(--accent);
   }
 
   .file-status {

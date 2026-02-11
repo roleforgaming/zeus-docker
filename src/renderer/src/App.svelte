@@ -304,31 +304,31 @@
   :global(html), :global(body) {
     height: 100%;
     overflow: hidden;
-    background: #282c34;
-    color: #abb2bf;
-    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Noto Sans KR', 'Segoe UI', Inter, Roboto, sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
   :global(::-webkit-scrollbar) { width: 6px; height: 6px; }
   :global(::-webkit-scrollbar-track) { background: transparent; }
-  :global(::-webkit-scrollbar-thumb) { background: #4b5263; border-radius: 3px; }
-  :global(::-webkit-scrollbar-thumb:hover) { background: #5c6370; }
+  :global(::-webkit-scrollbar-thumb) { background: var(--border-strong); border-radius: 3px; }
+  :global(::-webkit-scrollbar-thumb:hover) { background: var(--text-muted); }
 
   .titlebar {
     height: 52px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #21252b;
+    background: var(--bg-surface);
     border-bottom: 1px solid #181a1f;
     -webkit-app-region: drag;
   }
   .titlebar-text {
     font-size: 13px;
     font-weight: 500;
-    color: #7f848e;
+    color: var(--text-secondary);
     pointer-events: none;
   }
 
@@ -342,7 +342,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    background: #282c34;
+    background: var(--bg-base);
   }
 
   .terminal-region {
