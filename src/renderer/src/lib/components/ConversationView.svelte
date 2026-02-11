@@ -257,7 +257,28 @@
             parts.push(`\n<span class="tool-agent" style="color:${color}">⦿ **${agentName}**${descText ? `<span class="tool-desc"> — ${descText}</span>` : ''}</span>\n`)
             inSubagent = true
           } else if (isSubagentAuxTool(name)) {
-            const label = subagentAuxLabel(name, block.input ?? {})
+            // Try to resolve agent name from task_id by scanning earlier blocks
+            const taskId = typeof block.input?.task_id === 'string' ? block.input.task_id : ''
+            let resolvedAgents: { taskId?: string; name: string }[] | undefined
+            if (taskId) {
+              // Build a mini-map of subagents from earlier Task tool_use blocks
+              const agentsFromBlocks: { taskId?: string; name: string }[] = []
+              for (let j = 0; j < i; j++) {
+                const pb = blocks[j]
+                if (pb.type === 'tool_use' && pb.name && isSubagentTool(pb.name) && pb.input) {
+                  const aName = extractSubagentName(pb.name, pb.input) || pb.name
+                  // Check if the next block is a tool_result with the task_id
+                  let tid: string | undefined
+                  if (j + 1 < i && blocks[j + 1].type === 'tool_result') {
+                    const tidMatch = (blocks[j + 1].content ?? '').match(/task[_-]?id["\s:]+["']?([a-f0-9]{6,12})/i)
+                    if (tidMatch) tid = tidMatch[1]
+                  }
+                  agentsFromBlocks.push({ taskId: tid, name: aName })
+                }
+              }
+              if (agentsFromBlocks.length > 0) resolvedAgents = agentsFromBlocks
+            }
+            const label = subagentAuxLabel(name, block.input ?? {}, resolvedAgents)
             parts.push(`\n<span class="tool-wait">⏳ ${label}</span>\n`)
           } else {
             // CLI-like compact tool display with icon
@@ -291,8 +312,8 @@
 
   /**
    * Get any trailing text content that was received via text_delta AFTER
-   * the last assistant snapshot. This ensures real-time text appears even
-   * when blocks are being rendered.
+   * the last block's text. Since we now build blocks incrementally,
+   * this is typically empty — but serves as a safety net.
    */
   function getTrailingContent(blocks: ContentBlock[], fullText: string): string {
     if (!blocks.length || !fullText) return ''
@@ -505,6 +526,7 @@
                           <span class="sa-cell sa-c-name">
                             <span class="sa-dot"></span>
                             <span class="sa-name">{sa.name}</span>
+                            {#if sa.background}<span class="sa-bg-badge">BG</span>{/if}
                           </span>
                           <span class="sa-cell sa-c-status">
                             <span class="sa-status-text">{sa.nestedStatus || sa.description || 'Working…'}</span>
@@ -857,6 +879,19 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .sa-bg-badge {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    padding: 0 3px;
+    margin-left: 4px;
+    vertical-align: middle;
+    line-height: 14px;
+    letter-spacing: 0.5px;
   }
   .sa-c-status {
     color: var(--text-secondary);

@@ -21,6 +21,20 @@ export const IDE_LIST: IDEDef[] = [
 ]
 
 export function whichSync(cmd: string): boolean {
+  // Strategy 1: Use login shell to pick up user's full PATH (critical for packaged .app)
+  // GUI apps on macOS don't inherit shell PATH — only /usr/bin:/bin:/usr/sbin:/sbin
+  if (process.platform !== 'win32') {
+    try {
+      const shell = process.env.SHELL || '/bin/zsh'
+      const result = execSync(`${shell} -l -c 'which ${cmd}'`, {
+        encoding: 'utf-8',
+        timeout: 5000,
+        stdio: ['pipe', 'pipe', 'pipe']
+      }).trim()
+      if (result.length > 0) return true
+    } catch { /* try fallback */ }
+  }
+  // Strategy 2: Direct which/where (works in dev mode and Windows)
   try {
     const whichCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`
     const result = execSync(whichCmd, {
@@ -79,8 +93,9 @@ export function isClaudeCodeInstalled(): boolean {
 }
 
 export function getClaudeCodeVersion(): string | null {
+  const claudePath = getClaudeCliPath()
   try {
-    return execSync('claude --version', {
+    return execSync(`"${claudePath}" --version`, {
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -145,6 +160,22 @@ export function getClaudeModelAliases(): ModelAliasInfo[] {
   }
 }
 
+/** Get shell env with full PATH (for spawning npm, etc. in packaged app) */
+export function getShellEnv(): Record<string, string> {
+  const env = { ...process.env } as Record<string, string>
+  // In packaged macOS app, PATH is minimal — add common locations
+  if (process.platform !== 'win32' && env.PATH) {
+    const extras = [
+      `${process.env.HOME}/.local/bin`,
+      `${process.env.HOME}/.nvm/versions/node/current/bin`,
+      '/usr/local/bin',
+      '/opt/homebrew/bin'
+    ]
+    env.PATH = [...extras, env.PATH].join(':')
+  }
+  return env
+}
+
 export function checkLatestClaudeVersion(): Promise<{ current: string | null; latest: string | null; upToDate: boolean }> {
   return new Promise((resolve) => {
     const current = getClaudeCodeVersion()
@@ -152,7 +183,7 @@ export function checkLatestClaudeVersion(): Promise<{ current: string | null; la
 
     const child = spawn('npm', ['view', '@anthropic-ai/claude-code', 'version'], {
       shell: true,
-      env: { ...process.env },
+      env: getShellEnv(),
       timeout: 15000
     })
 
@@ -180,7 +211,7 @@ export function updateClaudeCode(): Promise<{ success: boolean; output?: string;
   return new Promise((resolve) => {
     const child = spawn('npm', ['install', '-g', '@anthropic-ai/claude-code'], {
       shell: true,
-      env: { ...process.env }
+      env: getShellEnv()
     })
 
     let stdout = ''

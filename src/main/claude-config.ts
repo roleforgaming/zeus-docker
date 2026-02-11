@@ -5,7 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
 import { spawn } from 'node:child_process'
-import { getClaudeCliPath } from './claude-cli.js'
+import { getClaudeCliPath, getShellEnv } from './claude-cli.js'
 
 // ── Claude Config ──────────────────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ export function writeProjectClaudeConfig(wsPath: string, config: object): boolea
 
 export function installMCPPackage(pkg: string): Promise<{ success: boolean; output?: string; error?: string }> {
   return new Promise((resolve) => {
-    const child = spawn('npm', ['install', '-g', pkg], { shell: true, env: { ...process.env } })
+    const child = spawn('npm', ['install', '-g', pkg], { shell: true, env: getShellEnv() })
     let stdout = ''
     let stderr = ''
     child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
@@ -79,7 +79,7 @@ export function checkMcpHealth(): Promise<McpHealthEntry[]> {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['mcp', 'list'], {
       shell: true,
-      env: { ...process.env },
+      env: getShellEnv(),
       timeout: 30000
     })
     let stdout = ''
@@ -131,7 +131,7 @@ export function listPlugins(): Promise<PluginEntry[]> {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['plugin', 'list'], {
       shell: true,
-      env: { ...process.env },
+      env: getShellEnv(),
       timeout: 15000
     })
     let stdout = ''
@@ -166,7 +166,7 @@ export function listMarketplaces(): Promise<MarketplaceEntry[]> {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['plugin', 'marketplace', 'list'], {
       shell: true,
-      env: { ...process.env },
+      env: getShellEnv(),
       timeout: 15000
     })
     let stdout = ''
@@ -202,7 +202,7 @@ export function runPluginCmd(
     console.log(`[zeus] Running: ${claudePath} ${args.join(' ')}`)
     const child = spawn(claudePath, args, {
       shell: true,
-      env: { ...process.env },
+      env: getShellEnv(),
       timeout: 30000
     })
     let stdout = ''

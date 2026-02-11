@@ -1,5 +1,6 @@
 import type { Skill, CustomSkill, ClaudeConfig, MarkdownFile } from '../types/index.js'
 import { markdownStore } from './markdown.svelte.js'
+import { registerKnownAgents } from '../utils/agent-colors.js'
 
 // ── Built-in Claude Code skills ────────────────────────────────────────────────
 
@@ -91,6 +92,9 @@ class SkillsStore {
         // Still load global user commands even without a workspace
         this.customSkills = await window.zeus.skills.scan('')
       }
+
+      // Register known agent names for subagent tool detection
+      registerKnownAgents(this.customSkills)
     } finally {
       this.loading = false
     }

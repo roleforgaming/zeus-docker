@@ -70,7 +70,7 @@ export function resolveAgentColor(agentName: string, customSkills: CustomSkill[]
 // ── Tool Identification ────────────────────────────────────────────────────────
 
 /** Normalised set of subagent tool names (lowercase for case-insensitive match) */
-const SUBAGENT_TOOLS = new Set(['task', 'delegate_task', 'agents'])
+const SUBAGENT_TOOLS = new Set(['task', 'delegate_task', 'agents', 'spawn_agent', 'create_agent', 'agent_task'])
 
 /** Tools used to retrieve or cancel background subagent results */
 const SUBAGENT_AUX_TOOLS = new Set([
@@ -78,10 +78,51 @@ const SUBAGENT_AUX_TOOLS = new Set([
   'taskcancel', 'background_cancel'
 ])
 
+/**
+ * Known custom agent names (lowercase, hyphens normalized to underscores).
+ * Populated from skillsStore.customSkills at runtime.
+ */
+const _knownAgentNames = new Set<string>()
+
+/** Register known agent names from custom skills (call on skill scan) */
+export function registerKnownAgents(skills: { name: string; kind: string }[]): void {
+  _knownAgentNames.clear()
+  for (const s of skills) {
+    if (s.kind === 'agent') {
+      _knownAgentNames.add(s.name.toLowerCase().replace(/-/g, '_'))
+      // Also add without the leading slash if present
+      const bare = s.name.replace(/^\//, '')
+      _knownAgentNames.add(bare.toLowerCase().replace(/-/g, '_'))
+    }
+  }
+}
+
 /** Check if a tool name is a subagent/task tool (one that STARTS a subagent) */
 export function isSubagentTool(name: string): boolean {
   const lower = name.toLowerCase()
-  return SUBAGENT_TOOLS.has(lower) || lower.startsWith('dispatch_agent')
+  if (SUBAGENT_TOOLS.has(lower)) return true
+  if (lower.startsWith('dispatch_agent')) return true
+  // Check against known agent names (custom agents dispatched by name)
+  const normalized = lower.replace(/-/g, '_')
+  if (_knownAgentNames.has(normalized)) return true
+  return false
+}
+
+/**
+ * Detect if a tool_use looks like an agent dispatch based on its input fields.
+ * Custom agents dispatched by name have inputs like { description, prompt, ... }
+ * rather than typical tool fields like { file_path, command, query, ... }.
+ */
+export function looksLikeAgentDispatch(input: Record<string, unknown>): boolean {
+  // Agent dispatch inputs typically have a 'prompt' or 'description' + 'task_description'
+  const hasPrompt = typeof input.prompt === 'string' && input.prompt.length > 10
+  const hasDesc = typeof input.description === 'string' && input.description.length > 5
+  const hasTaskDesc = typeof input.task_description === 'string'
+  const hasSubagentType = typeof input.subagent_type === 'string'
+  // Typical tool fields — if these exist, it's probably a regular tool
+  const hasToolFields = 'file_path' in input || 'command' in input || 'query' in input || 'pattern' in input || 'content' in input
+  if (hasToolFields) return false
+  return hasPrompt || hasDesc || hasTaskDesc || hasSubagentType || (hasDesc && Object.keys(input).length <= 5)
 }
 
 /** Check if a tool is subagent-auxiliary (TaskOutput, background_output, etc.) */
@@ -92,11 +133,14 @@ export function isSubagentAuxTool(name: string): boolean {
 /**
  * Human-readable label for a subagent auxiliary tool.
  * When subagents are provided, resolves task_id to a human-readable name.
+ * @param taskIdMap — optional persistent map of taskId → { name } for
+ *   backgrounded agents that may no longer be in the active subagents array.
  */
 export function subagentAuxLabel(
   name: string,
   input: Record<string, unknown>,
-  subagents?: { taskId?: string; name: string; nestedStatus?: string; finished?: boolean }[]
+  subagents?: { taskId?: string; name: string; nestedStatus?: string; finished?: boolean }[],
+  taskIdMap?: Map<string, { name: string; description: string }>
 ): string {
   const lower = name.toLowerCase()
   if (lower === 'taskoutput' || lower === 'background_output') {
@@ -112,6 +156,11 @@ export function subagentAuxLabel(
         agentLabel = match.name
         lastActivity = match.nestedStatus || ''
       }
+    }
+    // Fallback: check persistent taskId map (for backgrounded agents already cleared)
+    if (!agentLabel && taskId && taskIdMap) {
+      const cached = taskIdMap.get(taskId)
+      if (cached) agentLabel = cached.name
     }
     // Fallback: if only one active (unfinished) subagent, it's probably that one
     if (!agentLabel && subagents) {
@@ -145,7 +194,7 @@ export function subagentAuxLabel(
 
 /** Statuses that are too generic to display as "activity" context */
 const UNINFORMATIVE_STATUSES = new Set([
-  'Executing…', 'Starting…', 'Working…', 'Processing…', 'Preparing…'
+  'Executing…', 'Starting…', 'Working…', 'Processing…', 'Preparing…', 'Running in background…'
 ])
 
 /**
@@ -202,7 +251,48 @@ export function extractSubagentName(toolName: string, input: Record<string, unkn
     return input.category.replace(/_/g, '-')
   }
 
+  // If the tool name itself looks like an agent name (not a standard tool name),
+  // use it as the agent name. Custom agents dispatched directly use their name as tool name.
+  const STANDARD_TOOLS = new Set([
+    'task', 'delegate_task', 'agents', 'spawn_agent', 'create_agent', 'agent_task',
+    'read', 'write', 'edit', 'multiedit', 'bash', 'glob', 'grep', 'ls',
+    'webfetch', 'todoread', 'todowrite', 'taskoutput', 'background_output',
+    'taskcancel', 'background_cancel'
+  ])
+  if (!STANDARD_TOOLS.has(lower) && !lower.startsWith('mcp__')) {
+    // If it's a known agent name, return it formatted
+    const normalized = lower.replace(/-/g, '_')
+    if (_knownAgentNames.has(normalized)) {
+      return toolName.replace(/_/g, '-')
+    }
+  }
+
   return ''
+}
+
+/** Check if a Task tool input indicates a backgrounded (non-blocking) task */
+export function isBackgroundTask(input: Record<string, unknown>): boolean {
+  return input.background === true || input.bg === true || input.type === 'background'
+}
+
+/**
+ * Detect if a tool_result content looks like a "task started" response
+ * (just a task_id assignment) rather than an actual completed result.
+ * Backgrounded tasks return a short result with only a task_id.
+ */
+export function looksLikeTaskIdResult(content: string): boolean {
+  if (!content) return false
+  const trimmed = content.trim()
+  // Very short result that contains a hex task_id pattern
+  if (trimmed.length < 200 && /[a-f0-9]{6,12}/i.test(trimmed)) {
+    // Check for common task_id patterns
+    if (/task[_-]?id/i.test(trimmed)) return true
+    if (/started\s+(task|background)/i.test(trimmed)) return true
+    if (/^[a-f0-9]{6,12}$/i.test(trimmed)) return true
+    // If the entire result is basically just a short ID-like string
+    if (trimmed.length < 80) return true
+  }
+  return false
 }
 
 /** Extract subagent description from tool input */

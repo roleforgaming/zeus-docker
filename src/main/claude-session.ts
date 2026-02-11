@@ -5,7 +5,7 @@ import os from 'node:os'
 import fs from 'node:fs'
 import { spawn } from 'node:child_process'
 import type { BrowserWindow } from 'electron'
-import { getClaudeCliPath } from './claude-cli.js'
+import { getClaudeCliPath, getShellEnv } from './claude-cli.js'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -164,7 +164,15 @@ export function spawnClaudeSession(
 
   const claudePath = getClaudeCliPath()
   const safePrompt = prompt.startsWith('-') ? '\n' + prompt : prompt
-  const args = ['-p', safePrompt, '--output-format', 'stream-json', '--verbose', '--include-partial-messages']
+  const args = [
+    '-p', safePrompt,
+    '--output-format', 'stream-json',
+    '--verbose',
+    // Note: --include-partial-messages intentionally NOT included.
+    // It sends an assistant snapshot for every token, causing massive IPC overhead
+    // especially with parallel subagents. We get sufficient detail from
+    // content_block_start/delta/stop events + the subagent JSONL watcher.
+  ]
 
   if (model) args.push('--model', model)
   if (session.sessionId) args.push('--resume', session.sessionId, '--continue')
@@ -177,7 +185,7 @@ export function spawnClaudeSession(
   const child = spawn(claudePath, args, {
     cwd: effectiveCwd,
     env: {
-      ...process.env,
+      ...getShellEnv(),
       TERM: 'xterm-256color',
       LANG: process.env.LANG || 'en_US.UTF-8'
     },

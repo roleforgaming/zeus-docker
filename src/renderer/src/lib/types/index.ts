@@ -194,6 +194,7 @@ export interface SubagentInfo {
   startedAt: number
   finished: boolean         // true once tool_result received for this agent
   taskId?: string           // Claude Code internal task ID (used by TaskOutput to reference this agent)
+  background?: boolean      // true if launched as a backgrounded task (don't clear on initial tool_result)
 }
 
 /** Real-time token usage stats */

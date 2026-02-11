@@ -320,6 +320,36 @@
     slashMenuOpen = false
   }
 
+  /**
+   * Detect a completed /command anywhere in the input text and convert it to a tag.
+   * "Completed" means the /command word matches a known slash item and is followed
+   * by whitespace, end-of-string, or a newline — so it doesn't trigger mid-typing.
+   */
+  function checkInlineSkillTrigger() {
+    if (commandTag) return
+    if (slashMenuOpen) return // slash autocomplete is handling it
+
+    // Match /word patterns that are complete (followed by space, newline, or end)
+    const regex = /(^|[\s\n])(\/[\w:_-]+)(?=[\s\n]|$)/g
+    let match: RegExpExecArray | null
+    while ((match = regex.exec(inputValue)) !== null) {
+      const cmd = match[2]
+      const item = allSlashItems.find((i) => i.command === cmd)
+      if (!item) continue
+
+      // Found a match — extract it as a tag, keep the rest as text
+      const before = inputValue.slice(0, match.index + match[1].length)
+      const after = inputValue.slice(match.index + match[1].length + cmd.length)
+      commandTag = { command: item.command, label: item.label, kind: item.kind, filePath: item.filePath }
+      inputValue = (before + after).replace(/\s{2,}/g, ' ').trim()
+      requestAnimationFrame(() => {
+        resizeTextarea()
+        inputEl?.focus()
+      })
+      return
+    }
+  }
+
   /** Select a slash item → set as tag chip, clear input text */
   function selectSlashItem(item: SlashItem) {
     commandTag = { command: item.command, label: item.label, kind: item.kind, filePath: item.filePath }
@@ -816,33 +846,54 @@
     inputEl.style.height = 'auto'
     inputEl.style.height = Math.min(inputEl.scrollHeight, 150) + 'px'
     checkSlashTrigger()
+    // If slash menu didn't activate, check for inline /command anywhere in the text
+    if (!slashMenuOpen) {
+      checkInlineSkillTrigger()
+    }
   }
 
-  /** Intercept paste: if pasted text starts with /skillname, convert to tag */
+  /**
+   * Intercept paste: if pasted text contains a /skillname, extract it as a tag.
+   * Works whether input is empty or has existing text.
+   */
   function handlePaste(e: ClipboardEvent) {
-    // Only auto-convert if there's no existing tag and input is empty
-    if (commandTag || inputValue.trim()) return
+    if (commandTag) return // already have a tag
 
-    const pasted = e.clipboardData?.getData('text/plain')?.trim()
-    if (!pasted || !pasted.startsWith('/')) return
+    const pasted = e.clipboardData?.getData('text/plain')
+    if (!pasted) return
 
-    // Extract the command part (first word) and any remaining args
-    const spaceIdx = pasted.indexOf(' ')
-    const cmd = spaceIdx > 0 ? pasted.slice(0, spaceIdx) : pasted
-    const args = spaceIdx > 0 ? pasted.slice(spaceIdx + 1).trim() : ''
+    // Find any /command in the pasted text
+    const cmdRegex = /(^|[\s\n])(\/[\w:_-]+)/g
+    let cmdMatch: RegExpExecArray | null
+    while ((cmdMatch = cmdRegex.exec(pasted)) !== null) {
+      const cmd = cmdMatch[2]
+      const item = allSlashItems.find((i) => i.command === cmd)
+      if (!item) continue
 
-    // Try to match against known slash items
-    const match = allSlashItems.find((i) => i.command === cmd)
-    if (match) {
+      // Found a skill — extract it, keep the rest as text
       e.preventDefault()
-      commandTag = { command: match.command, label: match.label, kind: match.kind, filePath: match.filePath }
-      inputValue = args
+      const before = pasted.slice(0, cmdMatch.index + cmdMatch[1].length)
+      const after = pasted.slice(cmdMatch.index + cmdMatch[1].length + cmd.length)
+      const remainder = (before + after).replace(/\s{2,}/g, ' ').trim()
+
+      commandTag = { command: item.command, label: item.label, kind: item.kind, filePath: item.filePath }
+
+      // Merge remainder with existing input
+      if (inputValue.trim()) {
+        // Insert remainder at cursor position
+        const pos = inputEl?.selectionStart ?? inputValue.length
+        inputValue = inputValue.slice(0, pos) + remainder + inputValue.slice(pos)
+      } else {
+        inputValue = remainder
+      }
+
       requestAnimationFrame(() => {
         resizeTextarea()
         inputEl?.focus()
       })
+      return
     }
-    // If no match, let the default paste behavior happen
+    // No skill found in pasted text — let default paste behavior happen
   }
 
   function resetHeight() {

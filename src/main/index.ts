@@ -27,7 +27,8 @@ import {
   getClaudeCodeVersion,
   getClaudeModelAliases,
   checkLatestClaudeVersion,
-  updateClaudeCode
+  updateClaudeCode,
+  getShellEnv
 } from './claude-cli.js'
 import {
   initClaudeSession,
@@ -289,7 +290,7 @@ function registerIPC(): void {
     if (!allowedCmds.has(ideCmd)) return { success: false, error: `Unknown IDE command: ${ideCmd}` }
     try {
       const { spawn } = require('node:child_process')
-      const child = spawn(ideCmd, [workspacePath], { detached: true, stdio: 'ignore', shell: true })
+      const child = spawn(ideCmd, [workspacePath], { detached: true, stdio: 'ignore', shell: true, env: getShellEnv() })
       child.unref()
       return { success: true }
     } catch (e: unknown) {

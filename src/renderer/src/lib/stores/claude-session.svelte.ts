@@ -8,6 +8,10 @@ import {
   buildSubagentSummary,
   extractSubagentName,
   extractSubagentDesc,
+  isBackgroundTask,
+  looksLikeTaskIdResult,
+  looksLikeAgentDispatch,
+  registerKnownAgents,
   resolveAgentColor
 } from '../utils/agent-colors.js'
 
@@ -345,6 +349,7 @@ class ClaudeSessionStore {
       conv.streamingStatus = ''
       conv.pendingPrompt = null
       conv.activeSubagents = []
+      this._resetBlockTracking()
     }
 
     // Clear quick replies from previous turn
@@ -364,6 +369,7 @@ class ClaudeSessionStore {
     conv.streamingContent = ''
     conv.streamingBlocks = []
     conv.streamingStatus = 'Sending…'
+    this._resetBlockTracking()
     conv.tokenUsage = null
 
     // Trigger reactivity
@@ -503,6 +509,11 @@ class ClaudeSessionStore {
       sa.description = newDesc
       sa.nestedStatus = 'Preparing…'
     }
+    // Detect backgrounded task
+    if (isBackgroundTask(parsed) && !sa.background) {
+      sa.background = true
+      sa.nestedStatus = 'Running in background…'
+    }
   }
 
   /** Get the last unfinished subagent (avoids repeated .filter() calls in hot path) */
@@ -527,6 +538,15 @@ class ClaudeSessionStore {
   }
 
   /**
+   * Map from Claude API content_block index → position in streamingBlocks array.
+   * Used to build streamingBlocks incrementally from content_block_* events.
+   */
+  private _blockIndexMap = new Map<number, number>()
+
+  /** Accumulated raw JSON for each tool_use block (by API block index) */
+  private _toolInputAccum = new Map<number, string>()
+
+  /**
    * Track pending subagent tool blocks by content block index.
    * Key: blockIndex, Value: { convId, subagentId, partialJson }
    * Used to accumulate input_json_delta and update subagent name/desc once parseable.
@@ -535,6 +555,21 @@ class ClaudeSessionStore {
 
   /** Track pending aux tool (TaskOutput etc.) to resolve task_id from streaming input */
   private _pendingAuxTool: { blockIndex: number; toolName: string; partialJson: string } | null = null
+
+  /**
+   * Track unclassified tool_use blocks that might turn out to be agent dispatches.
+   * At content_block_start, we don't have input yet — if the tool name isn't recognized,
+   * we track it here. On input_json_delta, if the input looks like an agent dispatch,
+   * we promote it to a full subagent.
+   */
+  private _maybeAgentBlocks = new Map<number, { convId: string; blockId: string; toolName: string; partialJson: string }>()
+
+  /**
+   * Persistent map: taskId → { name, color, description }.
+   * Survives subagent clearing so TaskOutput can still resolve agent names
+   * even after backgrounded subagents are no longer in activeSubagents.
+   */
+  private _taskIdToAgent = new Map<string, { name: string; color: string; description: string }>()
 
   /** Last informative status per conversation — prevents long "Processing…" stalls */
   private _lastMeaningfulStatus = new Map<string, string>()
@@ -564,6 +599,15 @@ class ClaudeSessionStore {
     if (!vague.has(status)) {
       this._lastMeaningfulStatus.set(conv.id, status)
     }
+  }
+
+  /** Clear incremental block-building state */
+  private _resetBlockTracking(): void {
+    this._blockIndexMap.clear()
+    this._toolInputAccum.clear()
+    this._pendingSubagentInput.clear()
+    this._pendingAuxTool = null
+    this._maybeAgentBlocks.clear()
   }
 
   /** Throttled reactivity trigger — batch rapid streaming events into one update per frame */
@@ -614,11 +658,18 @@ class ClaudeSessionStore {
     const any = event as Record<string, unknown>
 
     if (event.type === 'assistant' && event.message?.content) {
-      // Assistant message snapshot — contains full content so far
+      // Assistant message snapshot — contains full content so far.
+      // If we're already building blocks incrementally (from content_block_* events),
+      // DON'T overwrite them — use the snapshot only for subagent detection and token usage.
       const { text, blocks } = extractText(event.message.content)
-      conv.streamingContent = text
-      conv.streamingBlocks = blocks
-      this._updateStatusFromBlocks(conv, blocks, text)
+      const hasIncrementalBlocks = conv.streamingBlocks.length > 0 && this._blockIndexMap.size > 0
+      if (!hasIncrementalBlocks) {
+        // No incremental blocks yet — use the snapshot (e.g. --include-partial-messages mode)
+        conv.streamingContent = text
+        conv.streamingBlocks = blocks
+      }
+      // Always update status from snapshot blocks if available
+      this._updateStatusFromBlocks(conv, hasIncrementalBlocks ? conv.streamingBlocks : blocks, text)
 
       // Extract token usage from assistant message
       const msgUsage = (event.message as Record<string, unknown>).usage as Record<string, unknown> | undefined
@@ -639,8 +690,9 @@ class ClaudeSessionStore {
       const knownIds = new Set(conv.activeSubagents.map((s) => s.id))
       for (let i = 0; i < blocks.length; i++) {
         const b = blocks[i]
-        if (b.type === 'tool_use' && b.name && isSubagentTool(b.name) && b.input) {
+        if (b.type === 'tool_use' && b.name && b.input && (isSubagentTool(b.name) || looksLikeAgentDispatch(b.input as Record<string, unknown>))) {
           const blockId = `sa-${i}`
+          const bg = isBackgroundTask(b.input)
           // Skip if already tracked (by either ID or block index)
           if (knownIds.has(blockId) || knownBlockIndices.has(i)) {
             // Already known subagent — update name/description if better data now available
@@ -655,6 +707,8 @@ class ClaudeSessionStore {
               if (betterDesc && (existing.description === 'Preparing…' || !existing.description)) {
                 existing.description = betterDesc
               }
+              // Update background flag if not yet set
+              if (bg && !existing.background) existing.background = true
             }
           } else {
             // New subagent — snapshot has full input data, so name extraction is reliable here
@@ -665,10 +719,11 @@ class ClaudeSessionStore {
               name: agentName || b.name,
               color: getAgentColor(agentName || b.name),
               description: extractSubagentDesc(b.input) || 'Preparing…',
-              nestedStatus: 'Executing…',
+              nestedStatus: bg ? 'Running in background…' : 'Executing…',
               toolsUsed: [],
               startedAt: Date.now(),
-              finished: false
+              finished: false,
+              background: bg
             }]
           }
           // Try to capture task_id from the immediately following tool_result
@@ -678,28 +733,84 @@ class ClaudeSessionStore {
             const tidMatch = resultContent.match(/task[_-]?id["\s:]+["']?([a-f0-9]{6,12})/i)
             if (tidMatch) {
               existing.taskId = tidMatch[1]
+              // Register in persistent map so TaskOutput can resolve even after clearing
+              this._taskIdToAgent.set(tidMatch[1], {
+                name: existing.name,
+                color: existing.color,
+                description: existing.description
+              })
             }
           }
         }
       }
-      // Detect finished subagents: a tool_result after the last Task/aux block means agents are done
+
+      // ── Detect finished subagents ──────────────────────────────────────────
+      // For each subagent, check if it has a corresponding completed tool_result.
+      // Backgrounded subagents get a tool_result immediately (just task_id) — NOT finished.
+      // They finish only when a TaskOutput receives their actual result.
       if (conv.activeSubagents.length > 0) {
-        let taskResultCount = 0
-        let lastAgentBlockIdx = -1
+        // Build a map: blockIndex → has tool_result following it
+        const blockHasResult = new Set<number>()
         for (let i = 0; i < blocks.length; i++) {
-          const bn = blocks[i].name
-          if (blocks[i].type === 'tool_use' && bn && (isSubagentTool(bn) || isSubagentAuxTool(bn))) {
-            lastAgentBlockIdx = i
+          if (blocks[i].type === 'tool_use' && i + 1 < blocks.length && blocks[i + 1].type === 'tool_result') {
+            blockHasResult.add(i)
           }
         }
-        // Count tool_results after the last agent-related tool block
-        for (let i = lastAgentBlockIdx + 1; i < blocks.length; i++) {
-          if (blocks[i].type === 'tool_result') taskResultCount++
-          if (blocks[i].type === 'text') taskResultCount += conv.activeSubagents.length // text after tasks = all done
+
+        let anyFinished = false
+        for (const sa of conv.activeSubagents) {
+          if (sa.finished) continue
+          if (!blockHasResult.has(sa.blockIndex)) continue
+          // This subagent's tool got a result
+          if (sa.background) {
+            // Already known backgrounded — keep it alive
+            continue
+          }
+          // Check if the tool_result looks like a task_id (behavior-based background detection)
+          const resultBlock = blocks[sa.blockIndex + 1]
+          if (resultBlock?.type === 'tool_result' && resultBlock.content) {
+            if (looksLikeTaskIdResult(resultBlock.content)) {
+              // Auto-detect as backgrounded task
+              sa.background = true
+              sa.nestedStatus = 'Running in background…'
+              const tidMatch = resultBlock.content.match(/([a-f0-9]{6,12})/i)
+              if (tidMatch && !sa.taskId) {
+                sa.taskId = tidMatch[1]
+                this._taskIdToAgent.set(tidMatch[1], { name: sa.name, color: sa.color, description: sa.description })
+              }
+              continue
+            }
+          }
+          // Blocking subagent completed
+          sa.finished = true
+          anyFinished = true
         }
-        if (taskResultCount >= conv.activeSubagents.length) {
-          conv.activeSubagents = []
-          this._stopSubagentWatch()
+
+        // Also detect "all done" if there's text or non-agent content after all agent blocks
+        const lastAgentBlockIdx = Math.max(...conv.activeSubagents.map(s => s.blockIndex))
+        let hasPostAgentContent = false
+        for (let i = lastAgentBlockIdx + 2; i < blocks.length; i++) {
+          // text block after all tasks (and their results) means the orchestrator is summarizing = all done
+          if (blocks[i].type === 'text') { hasPostAgentContent = true; break }
+          // A non-agent tool_use after all tasks also means agents are done
+          if (blocks[i].type === 'tool_use' && blocks[i].name && !isSubagentTool(blocks[i].name!) && !isSubagentAuxTool(blocks[i].name!)) {
+            hasPostAgentContent = true; break
+          }
+        }
+        if (hasPostAgentContent) {
+          conv.activeSubagents.forEach(s => { s.finished = true })
+          anyFinished = true
+        }
+
+        // Clean up: remove finished non-background agents; keep backgrounded ones
+        if (anyFinished) {
+          const remaining = conv.activeSubagents.filter(s => !s.finished || s.background)
+          if (remaining.length === 0) {
+            conv.activeSubagents = []
+            this._stopSubagentWatch()
+          } else {
+            conv.activeSubagents = remaining
+          }
         }
       }
 
@@ -708,11 +819,34 @@ class ClaudeSessionStore {
       const cb = any.content_block as Record<string, unknown> | undefined
       const blockIndex = typeof any.index === 'number' ? (any.index as number) : -1
 
+      // ── Incrementally build streamingBlocks ──
+      if (cb?.type === 'tool_use' && typeof cb.name === 'string') {
+        const newBlock: ContentBlock = { type: 'tool_use', id: typeof cb.id === 'string' ? cb.id : undefined, name: cb.name, input: {} }
+        const pos = conv.streamingBlocks.length
+        conv.streamingBlocks = [...conv.streamingBlocks, newBlock]
+        this._blockIndexMap.set(blockIndex, pos)
+        this._toolInputAccum.set(blockIndex, '')
+      } else if (cb?.type === 'thinking') {
+        const newBlock: ContentBlock = { type: 'thinking', thinking: '' }
+        const pos = conv.streamingBlocks.length
+        conv.streamingBlocks = [...conv.streamingBlocks, newBlock]
+        this._blockIndexMap.set(blockIndex, pos)
+      } else if (cb?.type === 'text') {
+        const newBlock: ContentBlock = { type: 'text', text: '' }
+        const pos = conv.streamingBlocks.length
+        conv.streamingBlocks = [...conv.streamingBlocks, newBlock]
+        this._blockIndexMap.set(blockIndex, pos)
+      }
+
+      // ── Subagent / tool tracking ──
       if (cb?.type === 'tool_use' && typeof cb.name === 'string') {
         const input = (cb.input && typeof cb.input === 'object') ? cb.input as Record<string, unknown> : {}
         const blockId = typeof cb.id === 'string' ? (cb.id as string) : `sa-${blockIndex}`
 
-        if (isSubagentTool(cb.name)) {
+        // Log all tool_use blocks for diagnostics
+        console.log(`[zeus] tool_use: name="${cb.name}", id="${blockId}", inputKeys=${Object.keys(input).join(',')}`)
+
+        if (isSubagentTool(cb.name) || looksLikeAgentDispatch(input)) {
           // New subagent starting — add to array (don't overwrite)
           // Note: input is usually {} here; real data arrives via input_json_delta
           // Deduplicate by both ID and blockIndex (snapshot path uses sa-{index} IDs)
@@ -738,7 +872,7 @@ class ClaudeSessionStore {
           this._setStatus(conv, this._formatToolStatus(cb.name, input))
         } else if (isSubagentAuxTool(cb.name)) {
           // TaskOutput / background_output / background_cancel — show as subagent status
-          this._setStatus(conv, subagentAuxLabel(cb.name, input, conv.activeSubagents))
+          this._setStatus(conv, subagentAuxLabel(cb.name, input, conv.activeSubagents, this._taskIdToAgent))
           // Track aux tool input_json_delta so we can resolve task_id once it arrives
           this._pendingAuxTool = { blockIndex, toolName: cb.name, partialJson: '' }
           // Keep any existing active subagents alive during this wait
@@ -755,6 +889,9 @@ class ClaudeSessionStore {
           this._setStatus(conv, this._formatToolStatus(cb.name, input))
         } else {
           this._setStatus(conv, this._formatToolStatus(cb.name, input))
+          // Track as a potential agent — if input_json_delta reveals agent-like fields,
+          // we'll promote this to a subagent.
+          this._maybeAgentBlocks.set(blockIndex, { convId: id, blockId, toolName: cb.name, partialJson: '' })
         }
       } else if (cb?.type === 'thinking') {
         const target = this._lastRunningAgent(conv)
@@ -777,10 +914,27 @@ class ClaudeSessionStore {
         if (conv.streamingContent.length > MAX_STREAMING_CONTENT) {
           conv.streamingContent = conv.streamingContent.slice(-MAX_STREAMING_CONTENT)
         }
+        // Append to the corresponding text block in streamingBlocks
+        const blockPos = this._blockIndexMap.get(deltaIndex)
+        if (blockPos !== undefined && conv.streamingBlocks[blockPos]?.type === 'text') {
+          conv.streamingBlocks[blockPos].text = (conv.streamingBlocks[blockPos].text ?? '') + delta.text
+          // Trigger array reactivity
+          conv.streamingBlocks = [...conv.streamingBlocks]
+        }
         this._setStatus(conv, 'Writing…')
-      } else if (delta?.type === 'thinking_delta') {
+      } else if (delta?.type === 'thinking_delta' && typeof delta.thinking === 'string') {
+        // Append to the corresponding thinking block
+        const blockPos = this._blockIndexMap.get(deltaIndex)
+        if (blockPos !== undefined && conv.streamingBlocks[blockPos]?.type === 'thinking') {
+          conv.streamingBlocks[blockPos].thinking = (conv.streamingBlocks[blockPos].thinking ?? '') + delta.thinking
+        }
         this._setStatus(conv, 'Thinking…')
       } else if (delta?.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+        // Accumulate raw JSON for the tool_use block (for finalization on block_stop)
+        const existing = this._toolInputAccum.get(deltaIndex)
+        if (existing !== undefined) {
+          this._toolInputAccum.set(deltaIndex, existing + delta.partial_json)
+        }
         // Tool input being streamed — accumulate for pending subagent blocks
         const pending = this._pendingSubagentInput.get(deltaIndex)
         if (pending) {
@@ -788,21 +942,71 @@ class ClaudeSessionStore {
           // Try to extract subagent name/description from partial JSON
           this._tryUpdateSubagentFromPartialInput(conv, pending)
         }
+
+        // ── Check unclassified tool blocks — promote to subagent if input looks like agent dispatch ──
+        const maybeAgent = this._maybeAgentBlocks.get(deltaIndex)
+        if (maybeAgent) {
+          maybeAgent.partialJson += delta.partial_json
+          // Try to parse partial input to see if it's an agent dispatch
+          let parsedMaybe: Record<string, unknown> | null = null
+          try { parsedMaybe = JSON.parse(maybeAgent.partialJson + '}') } catch {
+            try { parsedMaybe = JSON.parse(maybeAgent.partialJson + '"}') } catch { /* still partial */ }
+          }
+          if (parsedMaybe && looksLikeAgentDispatch(parsedMaybe)) {
+            // Promote to subagent!
+            console.log(`[zeus] Promoted tool "${maybeAgent.toolName}" to subagent (agent-like input detected)`)
+            const agentName = extractSubagentName(maybeAgent.toolName, parsedMaybe) || maybeAgent.toolName
+            const alreadyExists = conv.activeSubagents.some(
+              (s) => s.id === maybeAgent.blockId || s.blockIndex === deltaIndex
+            )
+            if (!alreadyExists) {
+              conv.activeSubagents = [...conv.activeSubagents, {
+                id: maybeAgent.blockId,
+                blockIndex: deltaIndex,
+                name: agentName,
+                color: getAgentColor(agentName),
+                description: extractSubagentDesc(parsedMaybe) || 'Preparing…',
+                nestedStatus: 'Starting…',
+                toolsUsed: [],
+                startedAt: Date.now(),
+                finished: false
+              }]
+              // Register for further input_json_delta tracking
+              this._pendingSubagentInput.set(deltaIndex, { convId: maybeAgent.convId, subagentId: maybeAgent.blockId, partialJson: maybeAgent.partialJson })
+            }
+            this._maybeAgentBlocks.delete(deltaIndex)
+          }
+        }
+
         // Also accumulate for aux tools (TaskOutput etc.) to resolve task_id
         if (this._pendingAuxTool && this._pendingAuxTool.blockIndex === deltaIndex) {
           this._pendingAuxTool.partialJson += delta.partial_json
           // Try parsing to extract task_id and update status label
           try {
             const auxInput = JSON.parse(this._pendingAuxTool.partialJson) as Record<string, unknown>
-            this._setStatus(conv, subagentAuxLabel(this._pendingAuxTool.toolName, auxInput, conv.activeSubagents))
+            this._setStatus(conv, subagentAuxLabel(this._pendingAuxTool.toolName, auxInput, conv.activeSubagents, this._taskIdToAgent))
             // Also try to link task_id to a subagent that doesn't have one yet
-            if (typeof auxInput.task_id === 'string' && conv.activeSubagents.length > 0) {
+            if (typeof auxInput.task_id === 'string') {
               const tid = auxInput.task_id
-              const alreadyLinked = conv.activeSubagents.some((s) => s.taskId === tid)
-              if (!alreadyLinked) {
-                // Assign to the first subagent without a taskId
-                const unlinked = conv.activeSubagents.find((s) => !s.taskId && !s.finished)
-                if (unlinked) unlinked.taskId = tid
+              if (conv.activeSubagents.length > 0) {
+                const alreadyLinked = conv.activeSubagents.some((s) => s.taskId === tid)
+                if (!alreadyLinked) {
+                  // Assign to the first backgrounded subagent without a taskId,
+                  // or fall back to any unlinked active subagent
+                  const bgUnlinked = conv.activeSubagents.find((s) => !s.taskId && !s.finished && s.background)
+                  const unlinked = bgUnlinked || conv.activeSubagents.find((s) => !s.taskId && !s.finished)
+                  if (unlinked) {
+                    unlinked.taskId = tid
+                    this._taskIdToAgent.set(tid, { name: unlinked.name, color: unlinked.color, description: unlinked.description })
+                  }
+                }
+              }
+              // Also register in persistent map from existing data
+              if (!this._taskIdToAgent.has(tid)) {
+                const match = conv.activeSubagents.find(s => s.taskId === tid)
+                if (match) {
+                  this._taskIdToAgent.set(tid, { name: match.name, color: match.color, description: match.description })
+                }
               }
             }
           } catch {
@@ -810,7 +1014,7 @@ class ClaudeSessionStore {
             const tidMatch = this._pendingAuxTool.partialJson.match(/"task_id"\s*:\s*"([a-f0-9]+)"/i)
             if (tidMatch) {
               const partialInput = { task_id: tidMatch[1], block: this._pendingAuxTool.partialJson.includes('"block":true') || this._pendingAuxTool.partialJson.includes('"block": true') }
-              this._setStatus(conv, subagentAuxLabel(this._pendingAuxTool.toolName, partialInput as unknown as Record<string, unknown>, conv.activeSubagents))
+              this._setStatus(conv, subagentAuxLabel(this._pendingAuxTool.toolName, partialInput as unknown as Record<string, unknown>, conv.activeSubagents, this._taskIdToAgent))
             }
           }
         }
@@ -822,6 +1026,24 @@ class ClaudeSessionStore {
 
     } else if (event.type === 'content_block_stop') {
       const stopIndex = typeof any.index === 'number' ? (any.index as number) : -1
+
+      // ── Finalize the block in streamingBlocks ──
+      const blockPos = this._blockIndexMap.get(stopIndex)
+      if (blockPos !== undefined) {
+        const block = conv.streamingBlocks[blockPos]
+        if (block?.type === 'tool_use') {
+          // Parse accumulated JSON into the block's input
+          const rawJson = this._toolInputAccum.get(stopIndex)
+          if (rawJson) {
+            try {
+              block.input = JSON.parse(rawJson) as Record<string, unknown>
+            } catch { /* partial — leave as-is */ }
+          }
+          conv.streamingBlocks = [...conv.streamingBlocks]
+        }
+        this._toolInputAccum.delete(stopIndex)
+      }
+
       // If this was a subagent tool block, finalize input parsing and mark as executing
       const pending = this._pendingSubagentInput.get(stopIndex)
       if (pending) {
@@ -835,14 +1057,62 @@ class ClaudeSessionStore {
             const desc = extractSubagentDesc(fullInput)
             if (desc) sa.description = desc
             // Capture task_id if available in input
-            if (typeof fullInput.task_id === 'string') sa.taskId = fullInput.task_id
-            sa.nestedStatus = 'Executing…'
+            if (typeof fullInput.task_id === 'string') {
+              sa.taskId = fullInput.task_id
+              // Register in persistent map for TaskOutput name resolution
+              this._taskIdToAgent.set(fullInput.task_id, {
+                name: sa.name,
+                color: sa.color,
+                description: sa.description
+              })
+            }
+            // Detect backgrounded task
+            if (isBackgroundTask(fullInput)) {
+              sa.background = true
+              sa.nestedStatus = 'Running in background…'
+            } else {
+              sa.nestedStatus = 'Executing…'
+            }
           }
         } catch { /* partial json, already handled incrementally */ }
         this._pendingSubagentInput.delete(stopIndex)
         // Start watching child JSONL files now that the subagent is executing
         this._maybeStartSubagentWatch(conv)
       }
+
+      // ── Handle maybeAgent blocks that reached block_stop ──
+      // If the block was still in _maybeAgentBlocks at stop, try final parse
+      const maybeAgentFinal = this._maybeAgentBlocks.get(stopIndex)
+      if (maybeAgentFinal) {
+        try {
+          const fullInput = JSON.parse(maybeAgentFinal.partialJson) as Record<string, unknown>
+          if (looksLikeAgentDispatch(fullInput)) {
+            console.log(`[zeus] Promoted tool "${maybeAgentFinal.toolName}" to subagent at block_stop`)
+            const agentName = extractSubagentName(maybeAgentFinal.toolName, fullInput) || maybeAgentFinal.toolName
+            const alreadyExists = conv.activeSubagents.some(
+              (s) => s.id === maybeAgentFinal.blockId || s.blockIndex === stopIndex
+            )
+            if (!alreadyExists) {
+              const bg = isBackgroundTask(fullInput)
+              conv.activeSubagents = [...conv.activeSubagents, {
+                id: maybeAgentFinal.blockId,
+                blockIndex: stopIndex,
+                name: agentName,
+                color: getAgentColor(agentName),
+                description: extractSubagentDesc(fullInput) || 'Preparing…',
+                nestedStatus: bg ? 'Running in background…' : 'Executing…',
+                toolsUsed: [],
+                startedAt: Date.now(),
+                finished: false,
+                background: bg
+              }]
+              this._maybeStartSubagentWatch(conv)
+            }
+          }
+        } catch { /* partial json */ }
+        this._maybeAgentBlocks.delete(stopIndex)
+      }
+
       // Clear aux tool tracking when its block finishes
       if (this._pendingAuxTool && this._pendingAuxTool.blockIndex === stopIndex) {
         this._pendingAuxTool = null
@@ -869,8 +1139,8 @@ class ClaudeSessionStore {
       }
       conv.streamingStatus = ''
       conv.activeSubagents = []
-      this._pendingSubagentInput.clear()
-      this._pendingAuxTool = null
+      this._resetBlockTracking()
+      this._taskIdToAgent.clear()
       this._stopSubagentWatch()
 
     } else if (event.type === 'system') {
@@ -878,6 +1148,59 @@ class ClaudeSessionStore {
 
     } else if (event.type === 'user') {
       // Tool result returned — Claude will continue processing
+      // Extract tool_result blocks and add them to streamingBlocks
+      const userContent = (event.message?.content as unknown[]) ?? []
+      if (Array.isArray(userContent)) {
+        for (const part of userContent) {
+          if (part && typeof part === 'object' && (part as Record<string, unknown>).type === 'tool_result') {
+            const tr = part as Record<string, unknown>
+            const toolUseId = typeof tr.tool_use_id === 'string' ? tr.tool_use_id : ''
+            const resultContent = typeof tr.content === 'string' ? tr.content
+              : Array.isArray(tr.content) ? (tr.content as unknown[]).map((c: unknown) => {
+                  if (typeof c === 'string') return c
+                  if (c && typeof c === 'object' && (c as Record<string, unknown>).type === 'text') return (c as Record<string, unknown>).text ?? ''
+                  return ''
+                }).join('')
+              : ''
+
+            if (resultContent) {
+              conv.streamingBlocks = [...conv.streamingBlocks, { type: 'tool_result', content: String(resultContent) }]
+            }
+
+            // ── Behavior-based backgrounded task detection ──
+            // If a tool_result for a Task tool looks like just a task_id (short, hex pattern),
+            // the subagent was backgrounded. Mark it so it stays in the table.
+            if (conv.activeSubagents.length > 0) {
+              const rc = String(resultContent)
+              // Find the subagent matching this tool_use_id
+              let matchedSa = toolUseId ? conv.activeSubagents.find(s => s.id === toolUseId && !s.finished) : undefined
+              // Fallback: find the most recent non-finished, non-background subagent
+              if (!matchedSa) {
+                for (let j = conv.activeSubagents.length - 1; j >= 0; j--) {
+                  const s = conv.activeSubagents[j]
+                  if (!s.finished && !s.background && !s.taskId) { matchedSa = s; break }
+                }
+              }
+              if (matchedSa && looksLikeTaskIdResult(rc)) {
+                // This is a backgrounded task — the tool_result is just the task_id
+                matchedSa.background = true
+                matchedSa.nestedStatus = 'Running in background…'
+                // Try to extract task_id
+                const tidMatch = rc.match(/([a-f0-9]{6,12})/i)
+                if (tidMatch && !matchedSa.taskId) {
+                  matchedSa.taskId = tidMatch[1]
+                  this._taskIdToAgent.set(tidMatch[1], {
+                    name: matchedSa.name,
+                    color: matchedSa.color,
+                    description: matchedSa.description
+                  })
+                }
+                console.log(`[zeus] Detected backgrounded agent: ${matchedSa.name} (task_id: ${matchedSa.taskId})`)
+              }
+            }
+          }
+        }
+      }
       conv.streamingStatus = 'Processing tool results…'
 
     } else if (event.type === 'raw' && typeof any.text === 'string') {
@@ -967,9 +1290,9 @@ class ClaudeSessionStore {
       }
 
       if (target && act.latestStatus) {
-        // Only update if we have something more informative than "Executing…"
-        if (target.nestedStatus === 'Executing…' || target.nestedStatus === 'Starting…' ||
-            target.nestedStatus === 'Working…' || act.latestStatus !== target.nestedStatus) {
+        // Only update if we have something more informative than generic statuses
+        const genericStatuses = new Set(['Executing…', 'Starting…', 'Working…', 'Running in background…', 'Preparing…'])
+        if (genericStatuses.has(target.nestedStatus) || act.latestStatus !== target.nestedStatus) {
           target.nestedStatus = act.latestStatus
           target.nestedToolName = act.latestTool
           if (act.latestTool && !target.toolsUsed.includes(act.latestTool)) {
@@ -1027,7 +1350,9 @@ class ClaudeSessionStore {
     conv.streamingBlocks = []
     conv.streamingStatus = ''
     conv.pendingPrompt = null
+    this._resetBlockTracking()
     this._lastMeaningfulStatus.delete(conv.id)
+    this._taskIdToAgent.clear()
 
     // Detect model-level questions with numbered choices for quick-reply UI
     conv.quickReplies = detectQuickReplies(conv.messages)

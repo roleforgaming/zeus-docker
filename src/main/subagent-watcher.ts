@@ -214,20 +214,26 @@ function matchToTarget(prompt: string, targets: SubagentWatchTarget[]): Subagent
 
 // ── Poll Cycle ─────────────────────────────────────────────────────────────────
 
+/** Track poll count for periodic logging */
+let _pollCount = 0
+
 function poll(): void {
   const s = _state
   if (!s) return
+  _pollCount++
 
   try {
     const files = fs.readdirSync(s.projectDir)
     const parentFile = `${s.parentSessionId}.jsonl`
+    const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && f !== parentFile && !s.staleFiles.has(f))
     const activities: SubagentActivity[] = []
 
-    for (const file of files) {
-      if (!file.endsWith('.jsonl')) continue
-      if (file === parentFile) continue
-      if (s.staleFiles.has(file)) continue
+    // Log every 10 polls (~20s) for debugging
+    if (_pollCount % 10 === 1) {
+      console.log(`[zeus] Subagent watcher poll #${_pollCount}: ${jsonlFiles.length} candidate files, ${s.targets.length} targets, dir: ${s.projectDir}`)
+    }
 
+    for (const file of jsonlFiles) {
       const filePath = path.join(s.projectDir, file)
 
       try {
@@ -261,6 +267,18 @@ function poll(): void {
             if (target) {
               matched = { name: target.name, taskId: target.taskId }
               s.sessionToAgent.set(file, matched)
+              console.log(`[zeus] Subagent watcher: matched ${file} → ${target.name}`)
+            }
+          }
+          // If no target matched but we have an active session, assign to unmatched
+          if (!matched && s.targets.length > 0) {
+            // Try loose matching: any unmatched target gets this file
+            const matchedNames = new Set([...s.sessionToAgent.values()].map(v => v.name))
+            const unmatched = s.targets.find(t => !matchedNames.has(t.name))
+            if (unmatched) {
+              matched = { name: unmatched.name, taskId: unmatched.taskId }
+              s.sessionToAgent.set(file, matched)
+              console.log(`[zeus] Subagent watcher: loose-matched ${file} → ${unmatched.name}`)
             }
           }
         }
