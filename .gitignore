@@ -1,5 +1,8 @@
 node_modules/
+server/node_modules/
 dist/
 out/
 .DS_Store
 *.log
+*.tsbuildinfo
+.env

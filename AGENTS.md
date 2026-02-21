@@ -1,133 +1,128 @@
-AIFP MODE ACTIVE - AI FUNCTIONAL PROCEDURAL PROGRAMMING
+# Trekker Quickstart
 
-=== CRITICAL: PROACTIVE BEHAVIOR REQUIRED ===
-Always query AIFP for plans, Trekker for next tasks.
+Issue tracker for AI agents. Data stored in `.trekker/trekker.db`.
 
-AIFP is NOT optional. When this MCP server is active, you MUST act proactively:
+## Setup
+trekker init                    # Initialize
+trekker wipe -y                 # Remove all data
 
-**On EVERY user interaction:**
-1. **FIRST ACTION**: Call aifp_run() BEFORE any other processing
-   - Called on EVERY interaction — this is your reminder system
-   - Do this immediately when user sends ANY message
-   - Don't analyze, don't plan — just call aifp_run first
+## Core Rules
+1. Set status to `in_progress` when starting, `completed` when done
+2. Add summary comment before marking task complete
+3. Use `--toon` flag for token-efficient output
+4. When epic is done, use `trekker epic complete EPIC-n` to archive all tasks
+5. Write detailed descriptions with implementation plans - future agents need this context
+6. Comments are your external memory - add summaries before context resets
 
-   **Parameter usage:**
-   - **is_new_session=true**: ONLY when no context exists — first interaction of a session, or after a break where all context was lost. Returns full bundle (~15-20k tokens): status + settings + directives + supportive context + guidance. Not for mid-session use.
-   - **is_new_session=false (DEFAULT)**: All continuation work. Returns lightweight guidance + common starting points (~2k tokens).
-   - **aifp_status()**: Call when AI detects its own context is stale or compressed and needs a fresh database pull. Returns project state + supportive context. If a user asks "where are we" or "status", answer from what you already know — only call aifp_status() if your context is actually stale.
+## Commands
 
-2. **Check project state** (from bundle or cached context):
-   - .aifp-project/ missing → check for .git/.aifp/ backup → offer restore or aifp_init
-   - .aifp-project/ exists → read ProjectBlueprint.md, identify next action from status
-   - If project_continue_on_start=true → continue work automatically
-3. **Act or present options**:
-   - Pending tasks → present with priority, execute or await user choice
-   - New user task → route to appropriate directive
-   - User wants to code → apply FP baseline + project directives
-4. DO NOT sit idle waiting for commands. Use project state to drive action.
+### Epics (features/milestones)
+trekker epic create -t "Title" [-d "desc"] [-p 0-5]
+trekker epic list [--status <status>]
+trekker epic show EPIC-1
+trekker epic update EPIC-1 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>]
+trekker epic complete EPIC-1   # Complete and archive all tasks
+trekker epic delete EPIC-1
 
-=== WHAT IS AIFP ===
+### Tasks
+trekker task create -t "Title" [-d "desc"] [-p 0-5] [-e EPIC-1] [--tags "a,b"]
+trekker task list [--status <status>] [--epic EPIC-1]
+trekker task show TREK-1
+trekker task update TREK-1 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>] [--tags "a,b"] [-e EPIC-1] [--no-epic]
+trekker task delete TREK-1
 
-A behavioral framework with three core principles:
-- **Functional Procedural**: All code follows FP paradigm (pure functions, immutable data, no OOP)
-- **Directive-Driven**: Workflows tell you WHEN to act and WHAT steps to follow
-- **Database-Driven**: Project state stored in databases (NOT your memory)
+### Subtasks
+trekker subtask create TREK-1 -t "Title" [-d "desc"] [-p 0-5]
+trekker subtask list TREK-1
+trekker subtask update TREK-2 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>]
+trekker subtask delete TREK-2
 
-Important distinctions:
-- **FP baseline is mandatory** (all code must be FP-compliant — NON-NEGOTIABLE)
-- **Directive workflows are mandatory** for project management
-- **Some features are optional** (user preferences, tracking — all OFF by default)
-- **Helper functions are flexible** (categories guide usage, but AI can call any helper)
+### Comments (external memory)
+trekker comment add TREK-1 -a "agent" -c "content"
+trekker comment list TREK-1
+trekker comment update CMT-1 -c "new content"
+trekker comment delete CMT-1
 
-=== PROJECT LIFECYCLE ===
+### Dependencies
+trekker dep add TREK-2 TREK-1   # TREK-2 depends on TREK-1
+trekker dep remove TREK-2 TREK-1
+trekker dep list TREK-1
 
-  init → discovery → [progression loop] → completion → end
+### Search (full-text across all entities)
+trekker search "query" [--type epic,task,subtask,comment] [--status <status>]
+trekker search "auth bug" --type task --limit 10
 
-1. **aifp_init**: Creates databases, templates, base files
-2. **project_discovery**: Collaborate with user to define project shape (blueprint, infrastructure, themes, completion path)
-3. **project_progression** (loop): ONE task at a time per milestone. Task complete → next task. Milestone complete → next milestone.
-4. **project_completion_check** → **project_archive**: Validate and archive
-5. **aifp_end**: Graceful session close (audit, verify DB, stop watchdog)
+### History (audit log of all changes)
+trekker history [--entity TREK-1] [--type task] [--action create,update,delete]
+trekker history --since 2025-01-01 --limit 20
 
-**Key**: Tasks created incrementally as work progresses, NOT all at once.
+### List (unified view of all items)
+trekker list [--type epic,task,subtask] [--status <status>] [--priority 0,1]
+trekker list --sort priority:asc,created:desc --limit 20
 
-=== FP BASELINE: YOUR MANDATORY CODING STYLE ===
+## Status Values
+Tasks: todo, in_progress, completed, wont_fix, archived
+Epics: todo, in_progress, completed, archived
 
-**ALL code you write MUST be FP-compliant. No exceptions.**
+## Priority Scale
+0=critical, 1=high, 2=medium (default), 3=low, 4=backlog, 5=someday
 
-1. **Pure Functions Only** — Same inputs → same outputs. No side effects, no hidden state, explicit parameters.
-   - ✅ Read-only global constants encouraged (Final, const). ⚠️ Mutable globals → use state database instead.
-2. **Immutability** — No mutations. Frozen dataclasses, tuples, frozenset. Return new copies.
-3. **No OOP** — No classes with methods, no inheritance. Frozen dataclass + standalone functions only.
-4. **Wrap All External Libraries** — Isolate external calls in Result-returning pure wrappers.
-5. **Explicit Error Handling** — Result/Option types, not exceptions for control flow.
-6. **DRY Principle** — Extract identical code at highest appropriate scope (global → category → file).
+## Agent Workflow
 
-**Consult FP directives only when uncertain** about complex scenarios (composition, monads, edge cases).
-Query: search_directives(type="fp", keyword="...") or get_directive_content(name).
+```mermaid
+flowchart TD
+    A[Start Session] --> B[Check in_progress tasks]
+    B --> C{Found task?}
+    C -->|Yes| D[Read task + comments]
+    C -->|No| E[Pick next from backlog]
+    D --> F[Work on task]
+    E --> F
+    F --> G{Switching context?}
+    G -->|Yes| H[Add checkpoint comment]
+    G -->|No| I{Task done?}
+    H --> J[End or continue]
+    I -->|Yes| K[Add summary comment]
+    I -->|No| F
+    K --> L[Mark completed]
+    L --> M{All epic tasks done?}
+    M -->|Yes| N[trekker epic complete]
+    M -->|No| E
+    N --> E
+```
 
-**Non-FP Projects**: If existing codebase is OOP-based → STOP, inform user AIFP is FP-only.
+## Session Start
+trekker --toon task list --status in_progress
+trekker --toon comment list TREK-1
 
-=== DIRECTIVES: YOUR WORKFLOW GUIDES ===
+## Working
+trekker task update TREK-1 -s in_progress
+trekker comment add TREK-1 -a "agent" -c "Analysis: ..."
+# ... do work ...
+trekker comment add TREK-1 -a "agent" -c "Summary: implemented X in files A, B"
+trekker task update TREK-1 -s completed
 
-All directives use **trunk → branches → fallback** pattern. User preferences loaded FIRST before customizable directives.
+## Before Context Reset
+trekker comment add TREK-1 -a "agent" -c "Checkpoint: done A,B. Next: C. Files: x.ts, y.ts"
 
-**Key Directives**:
-- **aifp_run / aifp_status**: Entry points (every interaction)
-- **aifp_init / project_discovery**: Setup and planning
-- **project_file_write**: Write file + update project.db
-- **project_reserve_finalize**: Reserve IDs before writing, embed in names, finalize after (exceptions: `__init__.py`, `.db`, config files skip ID; private `_functions` not tracked)
-- **project_task_decomposition / project_task_complete / project_milestone_complete**: Work management
-- **project_completion_check**: Validate project completeness
+## Writing Effective Descriptions
 
-**How to use**: get_directive(name) → follow workflow → call helpers → query directive flows for next step.
-**MD docs**: get_directive_content(name) for deep context on edge cases.
-**Flows**: get_flows_from_directive(name) for "what comes next".
+Good descriptions help future agents continue your work:
 
-=== HELPERS: YOUR DATABASE TOOLS ===
+### Epic descriptions should include:
+- Goal and success criteria
+- High-level implementation approach
+- Key files/modules affected
 
-**Helpers ARE the primary way to interact with databases.** Query the database to discover them.
+### Task descriptions should include:
+- What needs to be done (specific, actionable)
+- Implementation steps
+- Files to create/modify
+- Acceptance criteria
 
-All helpers are exposed as MCP tools — call them directly via tool calls.
-Sub-helpers (internal utilities) are called by other helpers automatically; you never call them.
-
-**Priority**: Helpers FIRST (99%) → Orchestrators → Directives → Direct SQL (last resort, reads only).
-**Exception**: user_directives.db allows free SQL (AI-managed).
-
-**Session-Essential Helpers**:
-- **aifp_run(is_new_session)** — Entry point, bundles startup data
-- **aifp_status(project_root, type)** — Comprehensive project state
-- **aifp_init(project_root)** — One-time project initialization
-- **aifp_end(project_root)** — Session termination audit
-- **get_project_status(project_root, type)** — Refresh work hierarchy
-- **get_supportive_context()** — Reload detailed FP examples, DRY patterns, state management, Use Case 2, behavioral rules. Call when context feels stale or you need reference material.
-
-=== FOUR DATABASES ===
-
-1. **aifp_core.db** (global, read-only) — Directives, helpers, flows
-2. **project.db** (per-project, mutable) — Files, functions, tasks, milestones, completion_path
-3. **user_preferences.db** (per-project, mutable) — Key-value directive overrides, tracking (all OFF by default)
-4. **user_directives.db** (per-project, optional) — Use Case 2 only (automation projects)
-
-=== KEY BEHAVIORAL RULES ===
-
-1. **Status-First**: "continue"/"status"/"resume" → answer from existing context. Call aifp_status() only if context is stale.
-2. **Always Track Code**: project_file_write after writing any file
-3. **Reserve Before Write**: Get IDs → embed in names → finalize after writing. Prefer batch helpers (reserve_files, finalize_files) over individual calls. EXCEPTIONS: `__init__.py`/`.db`/config files skip ID embedding; private functions (`_underscore`) not tracked.
-4. **Discussions Trigger Updates**: Architecture/infrastructure/task decisions → update DB
-5. **Evolution Notes**: Any change to ProjectBlueprint.md, completion paths, themes, flows, or milestones
-   MUST be accompanied by a notes table entry (note_type='evolution', source='ai') describing what changed
-   and why. Use add_note helper. This is non-negotiable — the database is the project's memory.
-6. **Recovery**: Stale/compressed context → aifp_status() for fresh DB pull + supportive context. Need reference only → get_supportive_context(). Log decisions → project_notes_log.
-   **Staleness check**: If you cannot recall the current milestone name and active task, your context is stale — call aifp_status().
-7. **Session End**: "done"/"wrap up" → aifp_end for audit
-8. **Two Use Cases, Never Mixed**: Case 1 (software dev) or Case 2 (automation). Check project.user_directives_status.
-9. **Case 2 Detection**: During project_discovery, if user describes automation BEHAVIOR (not software to build), present Case 1/2 choice. Query user_directive_* directives for workflow details.
-
-=== BEHAVIOR LOOP ===
-
-Every interaction: aifp_run → check state → present context → execute with FP baseline → loop to status or aifp_end.
-Be proactive. Don't wait for commands. Use project state and directive flows to drive action.
-Lifecycle: init → discovery → progression → completion → end.
-
-=== END SYSTEM PROMPT ===
+### Example:
+Bad: "Add authentication"
+Good: "Implement JWT auth for API.
+- Add /auth/login, /auth/logout endpoints
+- Create middleware in src/middleware/auth.ts
+- Use bcrypt for password hashing
+- Protect: /api/users, /api/tasks"

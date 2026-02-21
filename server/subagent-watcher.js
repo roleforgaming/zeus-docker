@@ -1,55 +1,14 @@
 /**
  * Subagent JSONL Watcher — monitors child session JSONL files to surface
  * real-time tool activity from subagents.
- *
- * Claude Code's parent stream only shows Task start → TaskOutput result.
- * Subagent internal events (tool calls, thinking, writing) are written to
- * separate JSONL files in ~/.claude/projects/<workspace>/. This module polls
- * those files and relays activity updates to the renderer.
  */
 import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs'
-import type { BrowserWindow } from 'electron'
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export interface SubagentWatchTarget {
-  taskId?: string
-  name: string
-  description: string   // prompt/description from the Task tool — used for matching
-}
-
-export interface SubagentActivity {
-  matchedName?: string
-  matchedTaskId?: string
-  childSessionId: string
-  latestTool?: string   // e.g. "Read", "Bash"
-  latestStatus: string  // e.g. "Read: src/App.tsx", "Thinking…"
-}
-
-interface WatchState {
-  conversationId: string
-  parentSessionId: string
-  projectDir: string
-  targets: SubagentWatchTarget[]
-  /** Track read position per file to only process new bytes */
-  filePositions: Map<string, number>
-  /** Cache child session file → matched subagent name */
-  sessionToAgent: Map<string, { name: string; taskId?: string }>
-  /** Set of session files that are too old (avoid re-checking) */
-  staleFiles: Set<string>
-  intervalId: ReturnType<typeof setInterval>
-}
-
-// ── Module State ───────────────────────────────────────────────────────────────
-
-let _getWindow: () => BrowserWindow | null = () => null
-let _state: WatchState | null = null
 
 // ── Human-readable tool labels ─────────────────────────────────────────────────
 
-const TOOL_LABELS: Record<string, string> = {
+const TOOL_LABELS = {
   read: 'Reading',
   write: 'Writing',
   edit: 'Editing',
@@ -65,27 +24,30 @@ const TOOL_LABELS: Record<string, string> = {
   todowrite: 'Writing TODOs',
 }
 
+// ── Module State ───────────────────────────────────────────────────────────────
+
+let _emit = (event, data) => {}
+let _state = null
+
 // ── Init ───────────────────────────────────────────────────────────────────────
 
-export function initSubagentWatcher(getWindow: () => BrowserWindow | null): void {
-  _getWindow = getWindow
+export function initSubagentWatcher(emitFn) {
+  _emit = emitFn
 }
 
 // ── Project Directory Resolution ───────────────────────────────────────────────
 
-function findProjectDir(parentSessionId: string, workspacePath: string): string | null {
+function findProjectDir(parentSessionId, workspacePath) {
   const claudeDir = path.join(os.homedir(), '.claude', 'projects')
   if (!fs.existsSync(claudeDir)) return null
 
   const encoded = workspacePath.replace(/\//g, '-')
 
-  // Direct path check
   const direct = path.join(claudeDir, encoded)
   if (fs.existsSync(direct) && fs.existsSync(path.join(direct, `${parentSessionId}.jsonl`))) {
     return direct
   }
 
-  // Fallback: scan all project dirs for the parent session file
   try {
     for (const dir of fs.readdirSync(claudeDir)) {
       const candidate = path.join(claudeDir, dir)
@@ -95,15 +57,14 @@ function findProjectDir(parentSessionId: string, workspacePath: string): string 
         }
       }
     }
-  } catch { /* ignore */ }
+  } catch {}
 
   return null
 }
 
 // ── File Parsing ───────────────────────────────────────────────────────────────
 
-/** Read the tail of a file (last N bytes) */
-function readFileTail(filePath: string, bytes: number): string {
+function readFileTail(filePath, bytes) {
   const fd = fs.openSync(filePath, 'r')
   try {
     const stat = fs.fstatSync(fd)
@@ -117,8 +78,7 @@ function readFileTail(filePath: string, bytes: number): string {
   }
 }
 
-/** Format tool + input into a short status string */
-function formatToolStatus(toolName: string, input: Record<string, unknown>): string {
+function formatToolStatus(toolName, input) {
   const label = TOOL_LABELS[toolName] ?? TOOL_LABELS[toolName.toLowerCase()] ?? toolName
   const detail = typeof input.file_path === 'string' ? input.file_path
     : typeof input.command === 'string' ? input.command.slice(0, 60)
@@ -129,8 +89,7 @@ function formatToolStatus(toolName: string, input: Record<string, unknown>): str
   return detail ? `${label}: ${detail}` : label
 }
 
-/** Extract the latest activity from JSONL content (reads backwards) */
-function extractLatestActivity(content: string): { tool?: string; status: string } | null {
+function extractLatestActivity(content) {
   const lines = content.split('\n').filter(l => l.trim())
 
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -140,7 +99,6 @@ function extractLatestActivity(content: string): { tool?: string; status: string
 
       const blocks = Array.isArray(obj.message.content) ? obj.message.content : []
 
-      // Scan blocks from last to first
       for (let j = blocks.length - 1; j >= 0; j--) {
         const b = blocks[j]
         if (b.type === 'tool_use' && b.name) {
@@ -150,15 +108,13 @@ function extractLatestActivity(content: string): { tool?: string; status: string
         if (b.type === 'thinking') return { status: 'Thinking…' }
         if (b.type === 'text' && b.text) return { status: 'Writing…' }
       }
-    } catch { /* skip */ }
+    } catch {}
   }
   return null
 }
 
-/** Extract first user prompt from a JSONL (first 8KB) — used for matching */
-function extractFirstPrompt(filePath: string): string | null {
+function extractFirstPrompt(filePath) {
   try {
-    // Read from start of file (we need the first user message)
     const fd = fs.openSync(filePath, 'r')
     const buf = Buffer.alloc(8192)
     const n = fs.readSync(fd, buf, 0, 8192, 0)
@@ -180,26 +136,23 @@ function extractFirstPrompt(filePath: string): string | null {
             }
           }
         }
-      } catch { /* skip */ }
+      } catch {}
     }
-  } catch { /* ignore */ }
+  } catch {}
   return null
 }
 
-/** Match a child session's first prompt to a known subagent */
-function matchToTarget(prompt: string, targets: SubagentWatchTarget[]): SubagentWatchTarget | null {
+function matchToTarget(prompt, targets) {
   if (!prompt || targets.length === 0) return null
   const pLow = prompt.toLowerCase()
 
-  let best: SubagentWatchTarget | null = null
+  let best = null
   let bestScore = 0
 
   for (const t of targets) {
     if (!t.description) continue
     const dLow = t.description.toLowerCase()
 
-    // Check containment: does the prompt contain the description (or vice versa)?
-    // Subagent prompts typically START with the description from the Task tool input.
     const descSnippet = dLow.slice(0, 120)
     const promptSnippet = pLow.slice(0, 200)
 
@@ -214,10 +167,9 @@ function matchToTarget(prompt: string, targets: SubagentWatchTarget[]): Subagent
 
 // ── Poll Cycle ─────────────────────────────────────────────────────────────────
 
-/** Track poll count for periodic logging */
 let _pollCount = 0
 
-function poll(): void {
+function poll() {
   const s = _state
   if (!s) return
   _pollCount++
@@ -226,9 +178,8 @@ function poll(): void {
     const files = fs.readdirSync(s.projectDir)
     const parentFile = `${s.parentSessionId}.jsonl`
     const jsonlFiles = files.filter(f => f.endsWith('.jsonl') && f !== parentFile && !s.staleFiles.has(f))
-    const activities: SubagentActivity[] = []
+    const activities = []
 
-    // Log every 10 polls (~20s) for debugging
     if (_pollCount % 10 === 1) {
       console.log(`[zeus] Subagent watcher poll #${_pollCount}: ${jsonlFiles.length} candidate files, ${s.targets.length} targets, dir: ${s.projectDir}`)
     }
@@ -239,26 +190,22 @@ function poll(): void {
       try {
         const stat = fs.statSync(filePath)
 
-        // Skip files older than 10 minutes (not related to current session)
         if (Date.now() - stat.mtimeMs > 10 * 60 * 1000) {
           s.staleFiles.add(file)
           continue
         }
 
         const prevSize = s.filePositions.get(file) ?? 0
-        if (stat.size <= prevSize) continue  // No new content
+        if (stat.size <= prevSize) continue
 
-        // Update tracked position
         s.filePositions.set(file, stat.size)
 
-        // Read the tail of the file for latest activity
         const tail = readFileTail(filePath, 8192)
         const activity = extractLatestActivity(tail)
         if (!activity) continue
 
         const childSessionId = file.replace('.jsonl', '')
 
-        // Try to match this file to a subagent
         let matched = s.sessionToAgent.get(file)
         if (!matched) {
           const firstPrompt = extractFirstPrompt(filePath)
@@ -270,9 +217,7 @@ function poll(): void {
               console.log(`[zeus] Subagent watcher: matched ${file} → ${target.name}`)
             }
           }
-          // If no target matched but we have an active session, assign to unmatched
           if (!matched && s.targets.length > 0) {
-            // Try loose matching: any unmatched target gets this file
             const matchedNames = new Set([...s.sessionToAgent.values()].map(v => v.name))
             const unmatched = s.targets.find(t => !matchedNames.has(t.name))
             if (unmatched) {
@@ -290,11 +235,11 @@ function poll(): void {
           latestTool: activity.tool,
           latestStatus: activity.status
         })
-      } catch { /* skip individual file errors */ }
+      } catch {}
     }
 
     if (activities.length > 0) {
-      _getWindow()?.webContents.send('claude-session:subagent-activity', {
+      _emit('claude-session:subagent-activity', {
         conversationId: s.conversationId,
         activities
       })
@@ -306,12 +251,7 @@ function poll(): void {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-export function startSubagentWatch(
-  conversationId: string,
-  parentSessionId: string,
-  workspacePath: string,
-  targets: SubagentWatchTarget[]
-): boolean {
+export function startSubagentWatch(conversationId, parentSessionId, workspacePath, targets) {
   stopSubagentWatch()
 
   const projectDir = findProjectDir(parentSessionId, workspacePath)
@@ -333,20 +273,17 @@ export function startSubagentWatch(
     intervalId: setInterval(poll, 2000)
   }
 
-  // Initial poll
   setTimeout(poll, 500)
   return true
 }
 
-export function updateSubagentTargets(targets: SubagentWatchTarget[]): void {
+export function updateSubagentTargets(targets) {
   if (_state) {
     _state.targets = targets
-    // Clear stale match cache if new targets added
-    // (a previously unmatched file might now match)
   }
 }
 
-export function stopSubagentWatch(): void {
+export function stopSubagentWatch() {
   if (_state) {
     clearInterval(_state.intervalId)
     console.log(`[zeus] Subagent watcher stopped for ${_state.conversationId}`)

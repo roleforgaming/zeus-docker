@@ -5,6 +5,7 @@
   import { terminalStore } from '../stores/terminal.svelte.js'
   import { workspaceStore } from '../stores/workspace.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
+  import { waitForElement } from '../utils/waitForElement.js'
   import IconPlus from './icons/IconPlus.svelte'
 
   // ── Tab state ──
@@ -352,12 +353,11 @@
     const id = await terminalStore.create(cwd)
     uiStore.activeView = 'terminal'
 
-    // Wait for terminal to be rendered
-    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+    // Wait for terminal DOM element to appear, then attach
     try {
-      const el = document.getElementById(`terminal-${id}`)
-      if (el) terminalStore.attach(id, `terminal-${id}`)
-    } catch { /* already attached */ }
+      await waitForElement(`terminal-${id}`)
+      terminalStore.attach(id, `terminal-${id}`)
+    } catch { /* already attached or timed out */ }
 
     terminalStore.sendInput(id, cmd)
     uiStore.showToast(`Running: ${cmd.split(' ').slice(0, 4).join(' ')}...`, 'info')

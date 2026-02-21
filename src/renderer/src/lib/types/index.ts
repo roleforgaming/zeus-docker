@@ -268,7 +268,7 @@ export interface AppStore {
 export interface ZeusAPI {
   workspace: {
     list(): Promise<Workspace[]>
-    add(): Promise<{ path: string; name: string } | null>
+    add(wsPath?: string): Promise<{ path: string; name: string } | null>
     remove(wsPath: string): Promise<boolean>
     rename(wsPath: string, newName: string): Promise<boolean>
     setLast(wsPath: string): Promise<boolean>
@@ -276,7 +276,7 @@ export interface ZeusAPI {
     reorder(orderedPaths: string[]): Promise<boolean>
   }
   terminal: {
-    create(workspacePath?: string): Promise<TerminalCreateResult>
+    create(workspacePath?: string): Promise<number>
     attach(termId: number, elementId: string): TerminalSize
     writeToPty(termId: number, data: string): void
     focus(termId: number): void

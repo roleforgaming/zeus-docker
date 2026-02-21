@@ -8,6 +8,7 @@
   import { uiStore } from './lib/stores/ui.svelte.js'
 
   import { markdownStore } from './lib/stores/markdown.svelte.js'
+  import { waitForElement } from './lib/utils/waitForElement.js'
 
   import Sidebar from './lib/components/Sidebar.svelte'
   import Toolbar from './lib/components/Toolbar.svelte'
@@ -74,19 +75,13 @@
 
   // ── Actions ──────────────────────────────────────────────────────────────────
 
-  /** Wait for Svelte DOM flush + one extra animation frame for layout */
-  async function waitForDom(): Promise<void> {
-    await tick()
-    await new Promise<void>((r) => requestAnimationFrame(() => r()))
-  }
-
   async function newTerminal(wsPath?: string) {
     const cwd = wsPath ?? workspaceStore.active?.path
     uiStore.activeView = 'terminal'
     const id = await terminalStore.create(cwd)
-    // Svelte must render <div id="terminal-{id}"> before we attach xterm
-    await waitForDom()
+    await tick() // flush: new terminal div + activeView both in DOM
     try {
+      await waitForElement(`terminal-${id}`)
       const size = terminalStore.attach(id, `terminal-${id}`)
       uiStore.termSize = `${size.cols}x${size.rows}`
     } catch (e) {

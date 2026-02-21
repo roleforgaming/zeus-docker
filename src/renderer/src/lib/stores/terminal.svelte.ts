@@ -61,7 +61,7 @@ class TerminalStore {
 
   /** Create a new terminal tab. */
   async create(workspacePath?: string): Promise<number> {
-    const { id } = await window.zeus.terminal.create(workspacePath)
+    const id = await window.zeus.terminal.create(workspacePath)
 
     const session: TerminalSession = {
       id,
@@ -87,14 +87,14 @@ class TerminalStore {
     if (snap) {
       // Kill all PTY processes in the snapshot
       for (const s of snap.sessions) {
-        window.zeus.terminal.kill(s.id).catch(() => {})
+        window.zeus.terminal.kill(s.id).catch(() => { })
       }
       this._snapshots.delete(workspacePath)
     }
     // If the removed workspace is the current one, kill all current sessions
     if (this._currentWorkspace === workspacePath) {
       for (const s of this.sessions) {
-        window.zeus.terminal.kill(s.id).catch(() => {})
+        window.zeus.terminal.kill(s.id).catch(() => { })
       }
       this.sessions = []
       this.activeId = null

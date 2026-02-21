@@ -1,0 +1,17 @@
+services:
+  zeus:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount host home dir so Zeus can access workspaces and Claude config
+      - ${HOME}:/host-home:ro
+      # Persist Zeus store
+      - zeus_data:/root/.zeus
+    environment:
+      - PORT=3000
+      - HOME=/root
+    restart: unless-stopped
+
+volumes:
+  zeus_data:

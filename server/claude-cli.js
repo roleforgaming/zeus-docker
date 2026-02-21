@@ -4,11 +4,10 @@
 import { execSync, spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { IDEDef } from './store.js'
 
-// ── IDE Detection ──────────────────────────────────────────────────────────────
+// ── IDE Detection ──────────────────────────────────────────────────────────
 
-export const IDE_LIST: IDEDef[] = [
+export const IDE_LIST = [
   { id: 'code', name: 'VS Code', cmd: 'code', icon: 'vscode' },
   { id: 'cursor', name: 'Cursor', cmd: 'cursor', icon: 'cursor' },
   { id: 'antigravity', name: 'Anti-Gravities', cmd: 'antigravity', icon: 'antigravity' },
@@ -20,7 +19,7 @@ export const IDE_LIST: IDEDef[] = [
   { id: 'vim', name: 'Neovim', cmd: 'nvim', icon: 'vim' }
 ]
 
-export function whichSync(cmd: string): boolean {
+export function whichSync(cmd) {
   // Strategy 1: Use login shell to pick up user's full PATH (critical for packaged .app)
   // GUI apps on macOS don't inherit shell PATH — only /usr/bin:/bin:/usr/sbin:/sbin
   if (process.platform !== 'win32') {
@@ -48,15 +47,15 @@ export function whichSync(cmd: string): boolean {
   }
 }
 
-export function detectInstalledIDEs(): IDEDef[] {
+export function detectInstalledIDEs() {
   return IDE_LIST.filter((ide) => whichSync(ide.cmd))
 }
 
 // ── Claude Code CLI ────────────────────────────────────────────────────────────
 
-let cachedClaudePath: string | null = null
+let cachedClaudePath = null
 
-export function getClaudeCliPath(): string {
+export function getClaudeCliPath() {
   if (cachedClaudePath) return cachedClaudePath
 
   const shell = process.env.SHELL || '/bin/zsh'
@@ -84,15 +83,15 @@ export function getClaudeCliPath(): string {
 }
 
 /** Reset cached path (call after update) */
-export function resetClaudeCliPath(): void {
+export function resetClaudeCliPath() {
   cachedClaudePath = null
 }
 
-export function isClaudeCodeInstalled(): boolean {
+export function isClaudeCodeInstalled() {
   return whichSync('claude')
 }
 
-export function getClaudeCodeVersion(): string | null {
+export function getClaudeCodeVersion() {
   const claudePath = getClaudeCliPath()
   try {
     return execSync(`"${claudePath}" --version`, {
@@ -105,18 +104,12 @@ export function getClaudeCodeVersion(): string | null {
   }
 }
 
-export interface ModelAliasInfo {
-  alias: string
-  fullName: string
-  version: string
-}
-
-export function getClaudeModelAliases(): ModelAliasInfo[] {
+export function getClaudeModelAliases() {
   try {
     const claudePath = getClaudeCliPath()
     const realPath = fs.realpathSync(claudePath)
 
-    let src: string | null = null
+    let src = null
 
     // Strategy 1: npm-installed package (cli.js in parent dir)
     const pkgDir = path.resolve(path.dirname(realPath), '..')
@@ -146,7 +139,7 @@ export function getClaudeModelAliases(): ModelAliasInfo[] {
       const entries = [...block.matchAll(/(\w+)\s*:\s*"(claude-[\w-]+)"/g)]
       if (entries.length < 2) continue
 
-      const models: ModelAliasInfo[] = []
+      const models = []
       for (const [, alias, fullName] of entries) {
         const verMatch = fullName.match(/claude-\w+-(\d+(?:-\d+)?)(?:-\d{8})?$/)
         const version = verMatch ? verMatch[1].replace(/-/g, '.') : ''
@@ -161,8 +154,8 @@ export function getClaudeModelAliases(): ModelAliasInfo[] {
 }
 
 /** Get shell env with full PATH (for spawning npm, etc. in packaged app) */
-export function getShellEnv(): Record<string, string> {
-  const env = { ...process.env } as Record<string, string>
+export function getShellEnv() {
+  const env = { ...process.env }
   // In packaged macOS app, PATH is minimal — add common locations
   if (process.platform !== 'win32' && env.PATH) {
     const extras = [
@@ -176,7 +169,7 @@ export function getShellEnv(): Record<string, string> {
   return env
 }
 
-export function checkLatestClaudeVersion(): Promise<{ current: string | null; latest: string | null; upToDate: boolean }> {
+export function checkLatestClaudeVersion() {
   return new Promise((resolve) => {
     const current = getClaudeCodeVersion()
     const currentSemver = current?.match(/(\d+\.\d+\.\d+)/)?.[1] ?? null
@@ -189,8 +182,8 @@ export function checkLatestClaudeVersion(): Promise<{ current: string | null; la
 
     let stdout = ''
     let stderr = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
-    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
+    child.stderr?.on('data', (d) => (stderr += d.toString()))
 
     child.on('close', (code) => {
       const latest = stdout.trim() || null
@@ -207,7 +200,7 @@ export function checkLatestClaudeVersion(): Promise<{ current: string | null; la
   })
 }
 
-export function updateClaudeCode(): Promise<{ success: boolean; output?: string; error?: string }> {
+export function updateClaudeCode() {
   return new Promise((resolve) => {
     const child = spawn('npm', ['install', '-g', '@anthropic-ai/claude-code'], {
       shell: true,
@@ -217,8 +210,8 @@ export function updateClaudeCode(): Promise<{ success: boolean; output?: string;
     let stdout = ''
     let stderr = ''
 
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
-    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
+    child.stderr?.on('data', (d) => (stderr += d.toString()))
 
     child.on('close', (code) => {
       resetClaudeCliPath()

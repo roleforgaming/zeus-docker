@@ -14,28 +14,11 @@ export const SKIP_DIRS = new Set([
   'target', 'vendor', '.idea', '.vscode', 'coverage', '.cache', '.turbo'
 ])
 
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export type SkillKind = 'command' | 'skill' | 'agent'
-
-export interface CustomSkillEntry {
-  name: string
-  filename: string
-  filePath: string
-  scope: 'user' | 'project'
-  kind: SkillKind
-  relativeTo: string
-  content: string
-  subdir: string
-  color?: string
-  metaDescription?: string
-}
-
 // ── Frontmatter Parser ─────────────────────────────────────────────────────────
 
 /** Parse YAML frontmatter from a markdown file and return { meta, body } */
-export function parseFrontmatter(raw: string): { meta: Record<string, string>; body: string } {
-  const meta: Record<string, string> = {}
+export function parseFrontmatter(raw) {
+  const meta = {}
   const match = raw.match(/^---\n([\s\S]*?)\n---\n?/)
   if (!match) return { meta, body: raw }
 
@@ -53,7 +36,7 @@ export function parseFrontmatter(raw: string): { meta: Record<string, string>; b
 
 // ── Scanner ────────────────────────────────────────────────────────────────────
 
-const SKILL_DIRS: { dir: string; kind: SkillKind }[] = [
+const SKILL_DIRS = [
   { dir: 'commands', kind: 'command' },
   { dir: 'skills', kind: 'skill' },
   { dir: 'agents', kind: 'agent' }
@@ -65,8 +48,8 @@ const SKILL_DIRS: { dir: string; kind: SkillKind }[] = [
  * 2. Project root: <wsPath>/.claude/{commands,skills,agents}/
  * 3. Child directories (depth-limited): <wsPath>/<child>/.claude/{commands,skills,agents}/
  */
-export function scanCustomSkills(wsPath: string): CustomSkillEntry[] {
-  const results: CustomSkillEntry[] = []
+export function scanCustomSkills(wsPath) {
+  const results = []
 
   // 1. Global user commands/skills/agents
   for (const { dir, kind } of SKILL_DIRS) {
@@ -86,25 +69,11 @@ export function scanCustomSkills(wsPath: string): CustomSkillEntry[] {
   return results
 }
 
-function collectCommandFiles(
-  cmdsDir: string,
-  scope: 'user' | 'project',
-  kind: SkillKind,
-  relativeTo: string,
-  results: CustomSkillEntry[]
-): void {
+function collectCommandFiles(cmdsDir, scope, kind, relativeTo, results) {
   collectRecursive(cmdsDir, cmdsDir, scope, kind, relativeTo, results, 0)
 }
 
-function collectRecursive(
-  baseDir: string,
-  currentDir: string,
-  scope: 'user' | 'project',
-  kind: SkillKind,
-  relativeTo: string,
-  results: CustomSkillEntry[],
-  depth: number
-): void {
+function collectRecursive(baseDir, currentDir, scope, kind, relativeTo, results, depth) {
   if (depth > 5) return
   try {
     if (!fs.existsSync(currentDir) || !fs.statSync(currentDir).isDirectory()) return
@@ -146,7 +115,7 @@ function collectRecursive(
   } catch { /* directory access error */ }
 }
 
-function scanChildrenForCommands(dir: string, results: CustomSkillEntry[], depth: number): void {
+function scanChildrenForCommands(dir, results, depth) {
   if (depth > 3) return
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true })

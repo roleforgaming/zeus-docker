@@ -4,57 +4,26 @@
  */
 import path from 'node:path'
 import fs from 'node:fs'
-import { app } from 'electron'
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-export interface Workspace {
-  path: string
-  name: string
-  addedAt: number
-  lastOpened: number
-}
-
-export interface SavedSession {
-  sessionId: string
-  title: string
-  workspacePath: string
-  lastUsed: number
-}
-
-export interface AppStore {
-  workspaces: Workspace[]
-  lastWorkspace: string | null
-  idePreference: string
-  windowBounds: { x?: number; y?: number; width: number; height: number } | null
-  savedSessions?: SavedSession[]
-}
-
-export interface IDEDef {
-  id: string
-  name: string
-  cmd: string
-  icon: string
-}
+import os from 'node:os'
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
-const storeFilePath = path.join(app.getPath('userData'), 'zeus-store.json')
+const storeFilePath = path.join(os.homedir(), '.zeus', 'zeus-store.json')
 
-let _store: AppStore
+let _store
 
-let _saveTimer: ReturnType<typeof setTimeout> | null = null
+let _saveTimer = null
 let _savePending = false
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
 /** Get the current store (call after initStore) */
-export function getStore(): AppStore {
+export function getStore() {
   return _store
 }
 
 /** Load store from disk (call once on startup) */
-export function initStore(): AppStore {
+export function initStore() {
   try {
     if (fs.existsSync(storeFilePath)) {
       _store = JSON.parse(fs.readFileSync(storeFilePath, 'utf-8'))
@@ -63,12 +32,12 @@ export function initStore(): AppStore {
   } catch {
     /* corrupted store — reset */
   }
-  _store = { workspaces: [], lastWorkspace: null, idePreference: 'code', windowBounds: null }
+  _store = { workspaces: [], lastWorkspace: null, idePreference: 'code', windowBounds: null, savedSessions: [] }
   return _store
 }
 
 /** Debounced save — coalesces rapid writes into one disk write per 500ms */
-export function saveStore(): void {
+export function saveStore() {
   _savePending = true
   if (_saveTimer) return
   _saveTimer = setTimeout(() => {
@@ -85,7 +54,7 @@ export function saveStore(): void {
 }
 
 /** Immediately flush any pending save (call on quit) */
-export function flushStore(): void {
+export function flushStore() {
   if (_saveTimer) {
     clearTimeout(_saveTimer)
     _saveTimer = null

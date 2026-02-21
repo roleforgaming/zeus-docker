@@ -9,11 +9,11 @@ import { getClaudeCliPath, getShellEnv } from './claude-cli.js'
 
 // ── Claude Config ──────────────────────────────────────────────────────────────
 
-function getClaudeConfigPath(): string {
+function getClaudeConfigPath() {
   return path.join(os.homedir(), '.claude.json')
 }
 
-export function readClaudeConfig(): object {
+export function readClaudeConfig() {
   try {
     const p = getClaudeConfigPath()
     if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf-8'))
@@ -21,7 +21,7 @@ export function readClaudeConfig(): object {
   return {}
 }
 
-export function writeClaudeConfig(config: object): boolean {
+export function writeClaudeConfig(config) {
   try {
     fs.writeFileSync(getClaudeConfigPath(), JSON.stringify(config, null, 2), 'utf-8')
     return true
@@ -30,7 +30,7 @@ export function writeClaudeConfig(config: object): boolean {
   }
 }
 
-export function readProjectClaudeConfig(wsPath: string): object {
+export function readProjectClaudeConfig(wsPath) {
   try {
     const p = path.join(wsPath, '.claude', 'settings.json')
     if (fs.existsSync(p)) return JSON.parse(fs.readFileSync(p, 'utf-8'))
@@ -38,7 +38,7 @@ export function readProjectClaudeConfig(wsPath: string): object {
   return {}
 }
 
-export function writeProjectClaudeConfig(wsPath: string, config: object): boolean {
+export function writeProjectClaudeConfig(wsPath, config) {
   try {
     const dir = path.join(wsPath, '.claude')
     fs.mkdirSync(dir, { recursive: true })
@@ -51,13 +51,13 @@ export function writeProjectClaudeConfig(wsPath: string, config: object): boolea
 
 // ── MCP ────────────────────────────────────────────────────────────────────────
 
-export function installMCPPackage(pkg: string): Promise<{ success: boolean; output?: string; error?: string }> {
+export function installMCPPackage(pkg) {
   return new Promise((resolve) => {
     const child = spawn('npm', ['install', '-g', pkg], { shell: true, env: getShellEnv() })
     let stdout = ''
     let stderr = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
-    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
+    child.stderr?.on('data', (d) => (stderr += d.toString()))
     child.on('close', (code) => {
       if (code === 0) resolve({ success: true, output: stdout })
       else resolve({ success: false, error: stderr || `Exit code ${code}` })
@@ -66,15 +66,7 @@ export function installMCPPackage(pkg: string): Promise<{ success: boolean; outp
   })
 }
 
-export interface McpHealthEntry {
-  name: string
-  command: string
-  transport: string
-  status: 'connected' | 'failed' | 'unknown'
-  error?: string
-}
-
-export function checkMcpHealth(): Promise<McpHealthEntry[]> {
+export function checkMcpHealth() {
   return new Promise((resolve) => {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['mcp', 'list'], {
@@ -84,10 +76,10 @@ export function checkMcpHealth(): Promise<McpHealthEntry[]> {
     })
     let stdout = ''
     let stderr = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
-    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
+    child.stderr?.on('data', (d) => (stderr += d.toString()))
     child.on('close', () => {
-      const entries: McpHealthEntry[] = []
+      const entries = []
       const combined = stdout + stderr
       for (const line of combined.split('\n')) {
         const trimmed = line.trim()
@@ -114,19 +106,7 @@ export function checkMcpHealth(): Promise<McpHealthEntry[]> {
 
 // ── Plugins ────────────────────────────────────────────────────────────────────
 
-export interface PluginEntry {
-  name: string
-  version: string
-  scope: string
-  enabled: boolean
-}
-
-export interface MarketplaceEntry {
-  name: string
-  source: string
-}
-
-export function listPlugins(): Promise<PluginEntry[]> {
+export function listPlugins() {
   return new Promise((resolve) => {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['plugin', 'list'], {
@@ -135,9 +115,9 @@ export function listPlugins(): Promise<PluginEntry[]> {
       timeout: 15000
     })
     let stdout = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
     child.on('close', () => {
-      const plugins: PluginEntry[] = []
+      const plugins = []
       const blocks = stdout.split(/\n\s*❯\s+/).filter(Boolean)
       for (const block of blocks) {
         const lines = block.trim().split('\n')
@@ -161,7 +141,7 @@ export function listPlugins(): Promise<PluginEntry[]> {
   })
 }
 
-export function listMarketplaces(): Promise<MarketplaceEntry[]> {
+export function listMarketplaces() {
   return new Promise((resolve) => {
     const claudePath = getClaudeCliPath()
     const child = spawn(claudePath, ['plugin', 'marketplace', 'list'], {
@@ -170,9 +150,9 @@ export function listMarketplaces(): Promise<MarketplaceEntry[]> {
       timeout: 15000
     })
     let stdout = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
     child.on('close', () => {
-      const marketplaces: MarketplaceEntry[] = []
+      const marketplaces = []
       const blocks = stdout.split(/\n\s*❯\s+/).filter(Boolean)
       for (const block of blocks) {
         const lines = block.trim().split('\n')
@@ -188,11 +168,7 @@ export function listMarketplaces(): Promise<MarketplaceEntry[]> {
   })
 }
 
-export function runPluginCmd(
-  action: string,
-  target: string,
-  scope?: string
-): Promise<{ success: boolean; output?: string; error?: string }> {
+export function runPluginCmd(action, target, scope) {
   return new Promise((resolve) => {
     const claudePath = getClaudeCliPath()
     const args = ['plugin', ...action.split(' '), target]
@@ -207,8 +183,8 @@ export function runPluginCmd(
     })
     let stdout = ''
     let stderr = ''
-    child.stdout?.on('data', (d: Buffer) => (stdout += d.toString()))
-    child.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    child.stdout?.on('data', (d) => (stdout += d.toString()))
+    child.stderr?.on('data', (d) => (stderr += d.toString()))
     child.on('close', (code) => {
       if (code === 0) resolve({ success: true, output: stdout })
       else resolve({ success: false, error: stderr || stdout || `Exit code ${code}` })

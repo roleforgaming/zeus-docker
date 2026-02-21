@@ -2,69 +2,20 @@
   "name": "zeus",
   "version": "1.0.0",
   "description": "A high-performance terminal for Claude Code — workspace management, auto-updates, and IDE integration",
-  "main": "./out/main/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
-    "start": "electron-vite preview",
-    "typecheck:node": "tsc --noEmit -p tsconfig.node.json",
-    "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
-    "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "dist": "electron-vite build && electron-builder",
-    "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "dist:linux": "electron-vite build && electron-builder --linux",
-    "postinstall": "electron-builder install-app-deps"
-  },
-  "build": {
-    "appId": "com.zeus.app",
-    "productName": "Zeus",
-    "mac": {
-      "category": "public.app-category.developer-tools",
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "icon": "resources/icon.icns"
-    },
-    "win": {
-      "target": [
-        "nsis"
-      ],
-      "icon": "resources/icon.ico"
-    },
-    "linux": {
-      "target": [
-        "AppImage"
-      ],
-      "icon": "resources/icon.png",
-      "category": "Development"
-    },
-    "files": [
-      "out/**/*",
-      "node_modules/node-pty/**/*"
-    ],
-    "asarUnpack": [
-      "node_modules/node-pty/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "resources/icon.png",
-        "to": "icon.png"
-      }
-    ],
-    "directories": {
-      "output": "dist"
-    }
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "node server/index.js",
+    "client:dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "npm run build && node server/index.js"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@tsconfig/svelte": "^5.0.0",
     "@types/dompurify": "^3.0.5",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0",
-    "electron-vite": "^2.3.0",
+    "concurrently": "^9.0.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.6.0",
@@ -76,7 +27,10 @@
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
     "dompurify": "^3.3.1",
+    "express": "^4.18.0",
     "marked": "^17.0.1",
-    "node-pty": "^1.0.0"
+    "node-pty": "^1.0.0",
+    "socket.io": "^4.7.0",
+    "socket.io-client": "^4.7.0"
   }
 }

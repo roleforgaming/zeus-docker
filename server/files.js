@@ -6,25 +6,16 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
 import { SKIP_DIRS } from './skills.js'
-import type { AppStore } from './store.js'
 
 // ── Markdown File Listing ──────────────────────────────────────────────────────
-
-interface MdFileEntry {
-  name: string
-  path: string
-  size: number
-  relativePath: string
-  dir: string
-}
 
 const CLAUDE_ROOT_FILES = new Set([
   'claude.md', 'agents.md', 'agent.md', 'claude_instructions.md',
   'claudeignore', '.claudeignore'
 ])
 
-export function listMarkdownFiles(dirPath: string): MdFileEntry[] {
-  const results: MdFileEntry[] = []
+export function listMarkdownFiles(dirPath) {
+  const results = []
   if (!dirPath || !fs.existsSync(dirPath)) return results
 
   try {
@@ -42,7 +33,7 @@ export function listMarkdownFiles(dirPath: string): MdFileEntry[] {
   })
 }
 
-function collectClaudeRootMd(dir: string, rootDir: string, results: MdFileEntry[]): void {
+function collectClaudeRootMd(dir, rootDir, results) {
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
@@ -54,7 +45,7 @@ function collectClaudeRootMd(dir: string, rootDir: string, results: MdFileEntry[
   } catch { /* ignore */ }
 }
 
-function collectAllMdInDir(dir: string, rootDir: string, results: MdFileEntry[], depth: number): void {
+function collectAllMdInDir(dir, rootDir, results, depth) {
   if (depth > 8) return
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -69,7 +60,7 @@ function collectAllMdInDir(dir: string, rootDir: string, results: MdFileEntry[],
   } catch { /* ignore */ }
 }
 
-function scanChildrenForClaudeMd(dir: string, rootDir: string, results: MdFileEntry[], depth: number): void {
+function scanChildrenForClaudeMd(dir, rootDir, results, depth) {
   if (depth > 3) return
   try {
     const entries = fs.readdirSync(dir, { withFileTypes: true })
@@ -88,7 +79,7 @@ function scanChildrenForClaudeMd(dir: string, rootDir: string, results: MdFileEn
   } catch { /* ignore */ }
 }
 
-function addMdEntry(fullPath: string, rootDir: string, results: MdFileEntry[]): void {
+function addMdEntry(fullPath, rootDir, results) {
   if (results.some((r) => r.path === fullPath)) return
   try {
     const stat = fs.statSync(fullPath)
@@ -107,7 +98,7 @@ function addMdEntry(fullPath: string, rootDir: string, results: MdFileEntry[]): 
 // ── Path Validation ────────────────────────────────────────────────────────────
 
 /** Validate that a file path is within a known workspace or home dir */
-export function isPathAllowed(filePath: string, store: AppStore): boolean {
+export function isPathAllowed(filePath, store) {
   const resolved = path.resolve(filePath)
   const home = os.homedir()
   for (const ws of store.workspaces) {
@@ -117,7 +108,7 @@ export function isPathAllowed(filePath: string, store: AppStore): boolean {
   return false
 }
 
-export function readFileContent(filePath: string, store: AppStore): string | null {
+export function readFileContent(filePath, store) {
   try {
     if (!isPathAllowed(filePath, store)) {
       console.warn('[zeus] readFileContent blocked — path outside allowed scope:', filePath)
@@ -129,7 +120,7 @@ export function readFileContent(filePath: string, store: AppStore): string | nul
   }
 }
 
-export function writeFileContent(filePath: string, content: string, store: AppStore): boolean {
+export function writeFileContent(filePath, content, store) {
   try {
     if (!isPathAllowed(filePath, store)) {
       console.warn('[zeus] writeFileContent blocked — path outside allowed scope:', filePath)
@@ -144,21 +135,14 @@ export function writeFileContent(filePath: string, content: string, store: AppSt
 
 // ── Git Diff ───────────────────────────────────────────────────────────────────
 
-export interface GitChangedFile {
-  path: string
-  status: 'modified' | 'added' | 'deleted' | 'renamed' | 'unknown'
-  additions: number
-  deletions: number
-}
-
 const GIT_EXEC_OPTS = {
-  encoding: 'utf-8' as const,
+  encoding: 'utf-8',
   timeout: 10000,
   maxBuffer: 5 * 1024 * 1024,
-  stdio: ['pipe', 'pipe', 'pipe'] as ['pipe', 'pipe', 'pipe']
+  stdio: ['pipe', 'pipe', 'pipe']
 }
 
-export function getGitDiff(workspacePath: string): string {
+export function getGitDiff(workspacePath) {
   try {
     const diff = execSync('git diff HEAD', { cwd: workspacePath, ...GIT_EXEC_OPTS })
     if (!diff.trim()) {
@@ -170,7 +154,7 @@ export function getGitDiff(workspacePath: string): string {
   }
 }
 
-export function getGitDiffFile(workspacePath: string, filePath: string): string {
+export function getGitDiffFile(workspacePath, filePath) {
   try {
     const diff = execSync(`git diff HEAD -- "${filePath}"`, { cwd: workspacePath, ...GIT_EXEC_OPTS })
     if (!diff.trim()) {
@@ -182,7 +166,7 @@ export function getGitDiffFile(workspacePath: string, filePath: string): string 
   }
 }
 
-export function getGitChangedFiles(workspacePath: string): GitChangedFile[] {
+export function getGitChangedFiles(workspacePath) {
   try {
     const files = parseGitNumstat(workspacePath, 'git diff HEAD --numstat', 'git diff HEAD --name-status')
     if (files.length > 0) return files
@@ -193,12 +177,12 @@ export function getGitChangedFiles(workspacePath: string): GitChangedFile[] {
   }
 }
 
-function parseGitNumstat(workspacePath: string, numstatCmd: string, nameStatusCmd: string): GitChangedFile[] {
+function parseGitNumstat(workspacePath, numstatCmd, nameStatusCmd) {
   const numstat = execSync(numstatCmd, { cwd: workspacePath, ...GIT_EXEC_OPTS }).trim()
   const nameStatus = execSync(nameStatusCmd, { cwd: workspacePath, ...GIT_EXEC_OPTS }).trim()
   if (!numstat) return []
 
-  const statusMap = new Map<string, string>()
+  const statusMap = new Map()
   for (const line of nameStatus.split('\n')) {
     if (!line.trim()) continue
     const [status, ...rest] = line.split('\t')
@@ -206,14 +190,14 @@ function parseGitNumstat(workspacePath: string, numstatCmd: string, nameStatusCm
     if (fpath) statusMap.set(fpath, status)
   }
 
-  const files: GitChangedFile[] = []
+  const files = []
   for (const line of numstat.split('\n')) {
     if (!line.trim()) continue
     const [add, del, ...rest] = line.split('\t')
     const fpath = rest.join('\t')
     if (!fpath) continue
     const rawStatus = statusMap.get(fpath) ?? 'M'
-    let status: GitChangedFile['status'] = 'modified'
+    let status = 'modified'
     if (rawStatus.startsWith('A')) status = 'added'
     else if (rawStatus.startsWith('D')) status = 'deleted'
     else if (rawStatus.startsWith('R')) status = 'renamed'
@@ -224,20 +208,11 @@ function parseGitNumstat(workspacePath: string, numstatCmd: string, nameStatusCm
 
 // ── Claude Transcript Reader ───────────────────────────────────────────────────
 
-export interface TranscriptMessage {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  displayContent?: string // abbreviated label for skill invocations
-  blocks?: Array<{ type: string; text?: string; name?: string; input?: Record<string, unknown>; content?: string; thinking?: string }>
-  timestamp: number
-}
-
-export function readClaudeTranscript(sessionId: string, workspacePath: string): TranscriptMessage[] {
+export function readClaudeTranscript(sessionId, workspacePath) {
   const claudeDir = path.join(os.homedir(), '.claude', 'projects')
   const encoded = workspacePath.replace(/\//g, '-')
 
-  let jsonlPath: string | null = null
+  let jsonlPath = null
 
   // Try the project dir first
   const candidates = [encoded]
@@ -263,13 +238,13 @@ export function readClaudeTranscript(sessionId: string, workspacePath: string): 
   try {
     const raw = fs.readFileSync(jsonlPath, 'utf-8')
     const lines = raw.split('\n').filter((l) => l.trim())
-    const messages: TranscriptMessage[] = []
+    const messages = []
 
     for (const line of lines) {
       try {
         const obj = JSON.parse(line)
-        const type = obj.type as string
-        const msg = obj.message as { role?: string; content?: unknown } | undefined
+        const type = obj.type
+        const msg = obj.message
         const timestamp = obj.timestamp ? new Date(obj.timestamp).getTime() : Date.now()
 
         if (type === 'user' && msg?.role === 'user') {
@@ -278,7 +253,7 @@ export function readClaudeTranscript(sessionId: string, workspacePath: string): 
           if (typeof content === 'string') {
             text = content
           } else if (Array.isArray(content)) {
-            const textParts: string[] = []
+            const textParts = []
             for (const part of content) {
               if (typeof part === 'string') textParts.push(part)
               else if (part?.type === 'text' && typeof part.text === 'string') {
@@ -302,8 +277,8 @@ export function readClaudeTranscript(sessionId: string, workspacePath: string): 
           }
         } else if (type === 'assistant' && msg?.role === 'assistant') {
           const content = msg.content
-          const blocks: TranscriptMessage['blocks'] = []
-          const textParts: string[] = []
+          const blocks = []
+          const textParts = []
 
           if (typeof content === 'string') {
             textParts.push(content)
@@ -342,7 +317,7 @@ export function readClaudeTranscript(sessionId: string, workspacePath: string): 
     }
 
     // Merge consecutive assistant messages
-    const merged: TranscriptMessage[] = []
+    const merged = []
     for (const msg of messages) {
       const prev = merged[merged.length - 1]
       if (prev && prev.role === 'assistant' && msg.role === 'assistant') {

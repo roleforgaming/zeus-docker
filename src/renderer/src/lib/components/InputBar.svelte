@@ -5,6 +5,8 @@
   import { markdownStore } from '../stores/markdown.svelte.js'
   import { terminalStore } from '../stores/terminal.svelte.js'
   import { uiStore, AVAILABLE_MODELS } from '../stores/ui.svelte.js'
+  import { tick } from 'svelte'
+  import { waitForElement } from '../utils/waitForElement.js'
   import IconAnthropic from './icons/IconAnthropic.svelte'
 
   let { ontoggleChanges }: { ontoggleChanges?: () => void } = $props()
@@ -642,15 +644,13 @@
     const cwd = workspaceStore.active?.path
     const id = await terminalStore.create(cwd)
     uiStore.activeView = 'terminal'
+    await tick() // flush: terminal div visible, activeView applied
 
-    // Wait for the terminal to be rendered and attached before sending input
-    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-
-    // Attach xterm if not already done (App.svelte normally does this)
+    // Wait for terminal DOM element, then attach xterm
     try {
-      const el = document.getElementById(`terminal-${id}`)
-      if (el) terminalStore.attach(id, `terminal-${id}`)
-    } catch { /* already attached */ }
+      await waitForElement(`terminal-${id}`)
+      terminalStore.attach(id, `terminal-${id}`)
+    } catch { /* already attached or timed out */ }
 
     // Build the command: `claude <subcommand> [args]`
     const fullCmd = args ? `claude ${subcommand} ${args}` : `claude ${subcommand}`
