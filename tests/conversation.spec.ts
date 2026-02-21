@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { loadApp, APP_READY_TIMEOUT, UI_TIMEOUT, AI_RESPONSE_TIMEOUT } from "./helpers/app";
+import {
+  loadApp,
+  APP_READY_TIMEOUT,
+  UI_TIMEOUT,
+  AI_RESPONSE_TIMEOUT,
+} from "./helpers/app";
 
 // ── Conversation View & Input Bar ─────────────────────────────────────────────
 
@@ -272,7 +277,7 @@ test.describe("Zeus IDE – Conversation View & InputBar", () => {
     const abortBtn = page.locator(
       ".conversation-view:not(.hidden) .send-btn.abort",
     );
-    await expect(streamProgress.or(abortBtn)).toBeVisible({
+    await expect(streamProgress.or(abortBtn).first()).toBeVisible({
       timeout: UI_TIMEOUT,
     });
 

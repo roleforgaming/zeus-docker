@@ -17,10 +17,11 @@ test.describe("Zeus IDE – Terminal", () => {
     await newTerminalBtn.click();
 
     // A terminal session item should appear in the sidebar sessions list
+    // pty spawn can take longer than a plain UI toggle, so use APP_READY_TIMEOUT
     const terminalSession = page
       .locator(".session-item .session-icon.terminal")
       .first();
-    await expect(terminalSession).toBeVisible({ timeout: UI_TIMEOUT });
+    await expect(terminalSession).toBeVisible({ timeout: APP_READY_TIMEOUT });
 
     // The terminal area should become the active view
     const terminalArea = page.locator(".terminal-area:not(.hidden)");
@@ -38,7 +39,7 @@ test.describe("Zeus IDE – Terminal", () => {
         has: page.locator(".session-icon.terminal"),
       })
       .first();
-    await expect(terminalItem).toBeVisible({ timeout: UI_TIMEOUT });
+    await expect(terminalItem).toBeVisible({ timeout: APP_READY_TIMEOUT });
   });
 
   test("terminal session can be closed via the × close button", async ({
@@ -52,7 +53,7 @@ test.describe("Zeus IDE – Terminal", () => {
         has: page.locator(".session-icon.terminal"),
       })
       .first();
-    await expect(terminalItem).toBeVisible({ timeout: UI_TIMEOUT });
+    await expect(terminalItem).toBeVisible({ timeout: APP_READY_TIMEOUT });
 
     // Hover to reveal the close button, then click
     await terminalItem.hover();
