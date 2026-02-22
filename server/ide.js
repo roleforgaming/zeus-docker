@@ -5,6 +5,7 @@
 import { spawnSync, spawn, execSync } from 'node:child_process'
 import { getShellEnv } from './claude-cli.js'
 import path from 'node:path'
+import { ZEUS_WORKSPACES_ROOT, CODESERVER_WORKSPACES_ROOT, getProjectName, zeusPathToCodeServerPath } from './workspace-config.js'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -77,8 +78,9 @@ function isCommandAvailable(cmd) {
 }
 
 /**
- * Resolve a workspace path, replacing the `/workspace` container prefix with
- * the host path from HOST_WORKSPACES_PATH when running inside Docker.
+ * Resolve a workspace path for desktop IDE spawning.
+ * Converts Zeus container paths (/workspace) to host paths when running in Docker.
+ * This is only needed for local desktop IDEs; code-server uses container paths directly.
  *
  * @param {string} workspacePath
  * @returns {string}
@@ -94,24 +96,11 @@ function resolveWorkspacePath(workspacePath) {
 /**
  * Convert a Zeus workspace path to a code-server container path.
  *
- * Maps paths under /app/workspaces/ to /workspace/ inside the code-server container.
- * Uses process.cwd() + "/workspaces" as the local base path to determine the
- * relative path, which is then prefixed with /workspace for the container.
- *
- * @param {string} hostPath - The workspace path (e.g., /app/workspaces/my-project)
- * @returns {string} The container path starting with /workspace
+ * @param {string} hostPath - The workspace path
+ * @returns {string} The container path for code-server
  */
 function toCodeServerPath(hostPath) {
-  const appWorkspacesRoot = path.join(process.cwd(), 'workspaces')
-
-  // If the path starts with the app workspaces root, map it to /workspace
-  if (hostPath.startsWith(appWorkspacesRoot)) {
-    const relativePath = path.relative(appWorkspacesRoot, hostPath)
-    return path.posix.join('/workspace', relativePath)
-  }
-
-  // Fallback: use the basename and create a /workspace path
-  return path.posix.join('/workspace', path.basename(hostPath))
+  return zeusPathToCodeServerPath(hostPath)
 }
 
 /**
