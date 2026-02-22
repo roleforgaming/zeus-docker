@@ -25,7 +25,7 @@ class WorkspaceStore {
       return null;
     }
     await this.load();
-    const ws = this.list.find((w) => w.path === result.path) ?? null;
+    const ws = this.list.find((w) => w.path === result.path) ?? result;
     if (ws) await this.select(ws);
     return ws;
   }
