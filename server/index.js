@@ -169,7 +169,8 @@ io.on("connection", (socket) => {
         });
         saveStore();
       }
-      cb(dirPath);
+      const newWorkspace = store.workspaces.find((w) => w.path === dirPath);
+      cb(newWorkspace || null);
     } catch (err) {
       console.error(`[zeus] Failed to add workspace at ${dirPath}:`, err);
       cb(null);
