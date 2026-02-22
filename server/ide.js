@@ -92,32 +92,24 @@ function resolveWorkspacePath(workspacePath) {
 }
 
 /**
- * Convert a host workspace path to a code-server container path.
- * 
- * When running inside Docker, HOST_WORKSPACES_PATH contains the host base path
- * (e.g., /home/user/workspaces), and we need to map it to /workspace inside
- * the code-server container.
- * 
- * @param {string} hostPath - The workspace path from the host
+ * Convert a Zeus workspace path to a code-server container path.
+ *
+ * Maps paths under /app/workspaces/ to /workspace/ inside the code-server container.
+ * Uses process.cwd() + "/workspaces" as the local base path to determine the
+ * relative path, which is then prefixed with /workspace for the container.
+ *
+ * @param {string} hostPath - The workspace path (e.g., /app/workspaces/my-project)
  * @returns {string} The container path starting with /workspace
- * @throws {Error} If HOST_WORKSPACES_PATH is not set
  */
 function toCodeServerPath(hostPath) {
-  const hostBase = process.env.HOST_WORKSPACES_PATH
-  
-  if (!hostBase) {
-    throw new Error(
-      'HOST_WORKSPACES_PATH environment variable is not set. ' +
-      'Cannot map workspace path to code-server container.'
-    )
-  }
-  
-  // If the path starts with the host base, replace it with /workspace
-  if (hostPath.startsWith(hostBase)) {
-    const relativePath = path.relative(hostBase, hostPath)
+  const appWorkspacesRoot = path.join(process.cwd(), 'workspaces')
+
+  // If the path starts with the app workspaces root, map it to /workspace
+  if (hostPath.startsWith(appWorkspacesRoot)) {
+    const relativePath = path.relative(appWorkspacesRoot, hostPath)
     return path.posix.join('/workspace', relativePath)
   }
-  
+
   // Fallback: use the basename and create a /workspace path
   return path.posix.join('/workspace', path.basename(hostPath))
 }
