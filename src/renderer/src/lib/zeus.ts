@@ -108,11 +108,11 @@ const zeus = {
 
       try {
         const wl = new WebLinksAddon((_: MouseEvent, uri: string) => {
-          invoke("system:open-external", uri);
+          window.open(uri, "_blank");
         });
         xterm.loadAddon(wl);
         addons.push(wl);
-      } catch {}
+      } catch { }
 
       xterm.open(container);
 
@@ -121,7 +121,7 @@ const zeus = {
         webgl.onContextLoss(() => webgl.dispose());
         xterm.loadAddon(webgl);
         addons.push(webgl);
-      } catch {}
+      } catch { }
 
       if (container.offsetWidth > 0 || container.offsetHeight > 0) {
         fitAddon.fit();
@@ -134,7 +134,7 @@ const zeus = {
         if (ev.ctrlKey && ev.key === "c") {
           const selection = xterm.getSelection();
           if (selection) {
-            navigator.clipboard.writeText(selection).catch(() => {});
+            navigator.clipboard.writeText(selection).catch(() => { });
             return false; // suppress — don't send \x03
           }
           return true; // no selection: let xterm send \x03 (interrupt)
@@ -146,7 +146,7 @@ const zeus = {
               if (text)
                 socket.emit("terminal:write", { id: termId, data: text });
             })
-            .catch(() => {});
+            .catch(() => { });
           return false; // suppress browser default paste
         }
         return true;
@@ -193,12 +193,12 @@ const zeus = {
         for (const addon of local.addons) {
           try {
             addon.dispose();
-          } catch {}
+          } catch { }
         }
         local.addons.length = 0;
         try {
           local.xterm.dispose();
-        } catch {}
+        } catch { }
         localTerminals.delete(termId);
       }
       return invoke("terminal:kill", termId);
@@ -338,7 +338,7 @@ const zeus = {
 
   // ── System ──
   system: {
-    openExternal: (url: string) => invoke("system:open-external", url),
+    openExternal: (url: string) => Promise.resolve(window.open(url, "_blank") ? true : false),
     revealInFinder: (p: string) => invoke("system:reveal-in-finder", p),
     getHome: () => invoke<string>("system:get-home"),
     pathExists: (p: string) => invoke<boolean>("system:path-exists", p),
