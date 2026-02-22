@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "8081:8080"
+    volumes:
+      - ./workspaces:/home/coder/workspaces
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    entrypoint: ["/entrypoint.sh"]
+    restart: unless-stopped
