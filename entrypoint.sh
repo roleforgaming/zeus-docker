@@ -14,7 +14,7 @@ echo "[zeus-entrypoint] Zeus PID: $ZEUS_PID"
 
 # Start code-server in background
 echo "[zeus-entrypoint] Starting code-server on port 8080..."
-code-server --bind-addr 0.0.0.0:8080 /home/coder/workspaces &
+PORT=8080 code-server --bind-addr 0.0.0.0:8080 /home/coder/workspaces &
 CODESERVER_PID=$!
 echo "[zeus-entrypoint] code-server PID: $CODESERVER_PID"
 
