@@ -36,12 +36,12 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/*
 
-# Create workspaces directory
-RUN mkdir -p /home/coder/workspaces && \
-    chown -R coder:coder /home/coder/workspaces
+# Create directories for volumes
+RUN mkdir -p /home/coder/workspaces /home/coder/.zeus && \
+    chown -R coder:coder /home/coder/workspaces /home/coder/.zeus
 
-# Install Claude Code using official native script
-RUN curl -fsSL https://claude.ai/install.sh | bash
+# Install Claude Code via npm
+RUN npm install -g @anthropic-ai/claude-code
 
 # Copy server package files and install dependencies
 COPY server/package*.json ./server/
@@ -63,6 +63,9 @@ RUN chown -R coder:coder /home/coder/zeus /entrypoint.sh && \
 
 # Switch to coder user (non-root)
 USER coder
+
+# Update Claude to native installer as the coder user
+RUN claude install
 
 # Set environment variables
 ENV PORT=3000 \
