@@ -164,8 +164,19 @@
       uiStore.showToast('No IDEs found on your system', 'error')
       return
     }
-    const result = await ideStore.open(ide.cmd, workspaceStore.active.path)
-    if (result.success) {
+    const result = await ideStore.open(ide.cmd, workspaceStore.active.path) as { success: boolean; error?: string; url?: string }
+    if (result.success && result.url) {
+      // For code-server, open the URL in a new tab
+      if (ide.id === 'codeserver') {
+        window.open(result.url, '_blank', 'noopener,noreferrer')
+        uiStore.showToast(`Opening in ${ide.name}...`, 'info')
+      } else {
+        // For other URLs, also open in new tab
+        window.open(result.url, '_blank', 'noopener,noreferrer')
+        uiStore.showToast(`Opening in ${ide.name}...`, 'info')
+      }
+    } else if (result.success) {
+      // Desktop IDE (no URL returned)
       uiStore.showToast(`Opening in ${ide.name}...`, 'info')
     } else {
       uiStore.showToast(`Failed: ${result.error}`, 'error')

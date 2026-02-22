@@ -4,15 +4,25 @@
   import { uiStore } from '../stores/ui.svelte.js'
   import IconCode from './icons/IconCode.svelte'
 
-  async function openIDE(cmd: string) {
+  async function openIDE(cmd: string, ideId: string) {
     if (!workspaceStore.active) return
     const workspacePath = workspaceStore.active.path
     try {
       const result = await ideStore.open(cmd, workspacePath) as { success: boolean; error?: string; url?: string }
-      if (result.url) {
-        window.open(result.url + '#' + workspacePath, '_blank')
-        uiStore.showToast(`Opening in ${cmd}...`, 'info')
+      
+      // Check if this is a browser-based IDE with a URL (code-server or http/https)
+      if (result.success && result.url) {
+        // For code-server, open the URL in a new tab
+        if (ideId === 'codeserver') {
+          window.open(result.url, '_blank', 'noopener,noreferrer')
+          uiStore.showToast(`Opening in Code Server...`, 'success')
+        } else {
+          // For other URLs, also open in new tab
+          window.open(result.url, '_blank', 'noopener,noreferrer')
+          uiStore.showToast(`Opening in browser...`, 'success')
+        }
       } else if (result.success) {
+        // Desktop IDE (no URL returned)
         uiStore.showToast(`Opening in ${cmd}...`, 'info')
       } else {
         uiStore.showToast(`Failed: ${result.error}`, 'error')
@@ -39,7 +49,7 @@
           <p class="empty">No supported IDEs found on your system.</p>
         {:else}
           {#each ideStore.list as ide (ide.id)}
-            <button class="ide-item" onclick={() => openIDE(ide.cmd)}>
+            <button class="ide-item" onclick={() => openIDE(ide.cmd, ide.id)}>
               <div class="ide-icon"><IconCode size={18} /></div>
               <span class="ide-name">{ide.name}</span>
               <span class="ide-cmd">{ide.cmd}</span>

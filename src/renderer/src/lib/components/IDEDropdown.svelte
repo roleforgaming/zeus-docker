@@ -93,16 +93,23 @@
     isOpen = false;
   }
 
-  async function openIDE(cmd: string) {
+  async function openIDE(cmd: string, ideId: string) {
     if (!workspaceStore.active) return;
     const workspacePath = workspaceStore.active.path;
     try {
-      const result = await ideStore.open(cmd, workspacePath);
+      const result = await ideStore.open(cmd, workspacePath) as { success: boolean; error?: string; url?: string };
 
-      // Check if this is a browser-based IDE with a URL
-      if (result.success && (result as any).url) {
-        window.open((result as any).url, "_blank", "noopener,noreferrer");
-        uiStore.showToast(`Opening in browser...`, "success");
+      // Check if this is a browser-based IDE with a URL (code-server or http/https)
+      if (result.success && result.url) {
+        // For code-server, open the URL in a new tab
+        if (ideId === 'codeserver') {
+          window.open(result.url, "_blank", "noopener,noreferrer");
+          uiStore.showToast(`Opening in Code Server...`, "success");
+        } else {
+          // For other URLs, also open in new tab
+          window.open(result.url, "_blank", "noopener,noreferrer");
+          uiStore.showToast(`Opening in browser...`, "success");
+        }
       } else if (result.success) {
         // Desktop IDE (no URL returned)
         uiStore.showToast(`Opening in ${cmd}...`, "success");
@@ -168,7 +175,7 @@
       {:else}
         {#each ideStore.list as ide (ide.id)}
           {@const icon = ideIcon(ide.icon)}
-          <button class="ide-option" onclick={() => openIDE(ide.cmd)}>
+          <button class="ide-option" onclick={() => openIDE(ide.cmd, ide.id)}>
             <div class="ide-icon-wrap" style="background: {icon.color}1a;">
               <svg
                 width="16"
