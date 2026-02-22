@@ -165,7 +165,8 @@ io.on("connection", (socket) => {
         store.workspaces.push({
           path: dirPath,
           name: projectName,
-          created: new Date().toISOString(),
+          addedAt: Date.now(),
+          lastOpened: Date.now(),
         });
         saveStore();
       }
