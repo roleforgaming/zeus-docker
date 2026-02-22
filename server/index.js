@@ -122,8 +122,17 @@ io.on("connection", (socket) => {
   socket.on("workspace:add", (wsPath, cb) => {
     const store = getStore();
     if (typeof wsPath !== "string" || !wsPath) return cb(null);
-    let dirPath = wsPath;
+    // Extract workspace name from the provided path
+    const name = path.basename(wsPath);
+    // Create workspace under /app/workspaces/<name>
+    const workspacesRoot = path.join(process.cwd(), "workspaces");
+    const dirPath = path.join(workspacesRoot, name);
     try {
+      // Ensure parent workspaces directory exists
+      if (!fs.existsSync(workspacesRoot)) {
+        fs.mkdirSync(workspacesRoot, { recursive: true });
+      }
+      // Ensure specific workspace directory exists
       if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
       }
@@ -131,7 +140,6 @@ io.on("connection", (socket) => {
     } catch {
       return cb(null);
     }
-    const name = path.basename(dirPath);
     if (!store.workspaces.find((w) => w.path === dirPath)) {
       store.workspaces.push({
         path: dirPath,
