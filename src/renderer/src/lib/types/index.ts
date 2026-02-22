@@ -268,7 +268,7 @@ export interface AppStore {
 export interface ZeusAPI {
   workspace: {
     list(): Promise<Workspace[]>
-    add(wsPath?: string): Promise<{ path: string; name: string } | null>
+    add(wsPath?: string): Promise<Workspace | null>
     remove(wsPath: string): Promise<boolean>
     rename(wsPath: string, newName: string): Promise<boolean>
     setLast(wsPath: string): Promise<boolean>
