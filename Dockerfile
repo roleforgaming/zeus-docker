@@ -14,33 +14,59 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# Stage 2: Production server image
-FROM node:20-slim
-WORKDIR /app
+# Stage 2: Production server image based on code-server
+FROM codercom/code-server:latest
+WORKDIR /home/coder/zeus
 
-# Install runtime deps + curl for Claude installer
+# Switch to root for installation
+USER root
+
+# Install Node.js 20 and additional build tools
 RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg \
+    ca-certificates \
     python3 \
     make \
     g++ \
-    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Add NodeSource repository and install Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create workspaces directory
+RUN mkdir -p /home/coder/workspaces && \
+    chown -R coder:coder /home/coder/workspaces
 
 # Install Claude Code using official native script
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
-# Update PATH for Claude binary (~/.local/bin)
-ENV PATH="/root/.local/bin:/usr/local/bin:${PATH}"
+# Copy server package files and install dependencies
+COPY server/package*.json ./
+RUN npm ci --production
 
-# Copy server deps
-COPY server/package*.json ./server/
-RUN cd server && npm ci --production
+# Copy server source code
+COPY server/ ./
 
-# Copy server source + built frontend
-COPY server/ ./server/
+# Copy built frontend from builder stage
 COPY --from=builder /app/dist/renderer ./dist/renderer
 
-ENV PORT=3000
-EXPOSE 3000
+# Copy entrypoint script if it exists
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["node", "server/index.js"]
+# Switch to coder user (non-root)
+USER coder
+
+# Set environment variables
+ENV PORT=3000 \
+    NODE_ENV=production \
+    PATH="/home/coder/.local/bin:${PATH}"
+
+# Expose both Zeus backend (3000) and code-server (8080)
+EXPOSE 3000 8080
+
+# Run the entrypoint script
+ENTRYPOINT ["/entrypoint.sh"]
