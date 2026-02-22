@@ -63,6 +63,7 @@ import {
   updateSubagentTargets,
   stopSubagentWatch,
 } from "./subagent-watcher.js";
+import { getIDEs, openIDE } from "./ide.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -249,24 +250,10 @@ io.on("connection", (socket) => {
 
   // ── IDE ────────────────────────────────────────────────────────────────────
 
-  socket.on("ide:list", (cb) => cb(detectInstalledIDEs()));
+  socket.on("ide:list", (cb) => cb(getIDEs()));
 
   socket.on("ide:open", ({ ideCmd, workspacePath }, cb) => {
-    const allowedCmds = new Set(IDE_LIST.map((ide) => ide.cmd));
-    if (!allowedCmds.has(ideCmd))
-      return cb({ success: false, error: `Unknown IDE command: ${ideCmd}` });
-    try {
-      const child = spawnProc(ideCmd, [workspacePath], {
-        detached: true,
-        stdio: "ignore",
-        shell: true,
-        env: getShellEnv(),
-      });
-      child.unref();
-      cb({ success: true });
-    } catch (e) {
-      cb({ success: false, error: e.message });
-    }
+    cb(openIDE(ideCmd, workspacePath));
   });
 
   socket.on("ide:get-preference", (cb) => cb(getStore().idePreference));

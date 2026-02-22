@@ -6,13 +6,22 @@
 
   async function openIDE(cmd: string) {
     if (!workspaceStore.active) return
-    const result = await ideStore.open(cmd, workspaceStore.active.path)
-    if (result.success) {
-      uiStore.showToast(`Opening in ${cmd}...`, 'info')
-    } else {
-      uiStore.showToast(`Failed: ${result.error}`, 'error')
+    const workspacePath = workspaceStore.active.path
+    try {
+      const result = await ideStore.open(cmd, workspacePath) as { success: boolean; error?: string; url?: string }
+      if (result.url) {
+        window.open(result.url + '#' + workspacePath, '_blank')
+        uiStore.showToast(`Opening in ${cmd}...`, 'info')
+      } else if (result.success) {
+        uiStore.showToast(`Opening in ${cmd}...`, 'info')
+      } else {
+        uiStore.showToast(`Failed: ${result.error}`, 'error')
+      }
+    } catch (err) {
+      uiStore.showToast(`Failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+    } finally {
+      uiStore.ideModalOpen = false
     }
-    uiStore.ideModalOpen = false
   }
 </script>
 

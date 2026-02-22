@@ -1,4 +1,15 @@
 services:
+  code-server:
+    image: codercom/code-server:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${HOME}/workspaces:/workspace
+      - code-server-data:/home/coder/.local/share/code-server
+    environment:
+      - PASSWORD=changeme
+    restart: unless-stopped
+
   zeus:
     build: .
     ports:
@@ -8,10 +19,16 @@ services:
       - ${HOME}:/host-home:ro
       # Persist Zeus store
       - zeus_data:/root/.zeus
+      # Shared workspace volume with code-server
+      - ${HOME}/workspaces:/workspace
     environment:
       - PORT=3000
       - HOME=/root
+      - HOST_WORKSPACES_PATH=${HOME}/workspaces
+    depends_on:
+      - code-server
     restart: unless-stopped
 
 volumes:
   zeus_data:
+  code-server-data:
