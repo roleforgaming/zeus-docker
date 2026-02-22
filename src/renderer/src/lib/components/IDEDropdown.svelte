@@ -1,112 +1,128 @@
 <script lang="ts">
-  import { ideStore } from '../stores/ide.svelte.js'
-  import { workspaceStore } from '../stores/workspace.svelte.js'
-  import { uiStore } from '../stores/ui.svelte.js'
+  import { ideStore } from "../stores/ide.svelte.js";
+  import { workspaceStore } from "../stores/workspace.svelte.js";
+  import { uiStore } from "../stores/ui.svelte.js";
 
-  let isOpen = $state(false)
+  let isOpen = $state(false);
 
   /** IDE icon map — returns SVG path content for each known IDE */
-  function ideIcon(iconId: string): { path: string; viewBox: string; color: string } {
+  function ideIcon(iconId: string): {
+    path: string;
+    viewBox: string;
+    color: string;
+  } {
     switch (iconId) {
-      case 'vscode':
+      case "vscode":
         return {
-          path: 'M17.58 2.58L12.7 7.47 6.93 3.07 2 5.13v13.74l4.93 2.06 5.77-4.4 4.88 4.89L22 18.87V5.13l-4.42-2.55zM6 15.6V8.4l3.5 3.6L6 15.6zm11 1.27l-4-3.87 4-3.87v7.74z',
-          viewBox: '0 0 24 24',
-          color: '#007ACC'
-        }
-      case 'cursor':
+          path: "M17.58 2.58L12.7 7.47 6.93 3.07 2 5.13v13.74l4.93 2.06 5.77-4.4 4.88 4.89L22 18.87V5.13l-4.42-2.55zM6 15.6V8.4l3.5 3.6L6 15.6zm11 1.27l-4-3.87 4-3.87v7.74z",
+          viewBox: "0 0 24 24",
+          color: "#007ACC",
+        };
+      case "cursor":
         return {
-          path: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
-          viewBox: '0 0 24 24',
-          color: '#00D4FF'
-        }
-      case 'antigravity':
+          path: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5",
+          viewBox: "0 0 24 24",
+          color: "#00D4FF",
+        };
+      case "antigravity":
         return {
-          path: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4l6 6h-4v4h-4v-4H6l6-6z',
-          viewBox: '0 0 24 24',
-          color: '#FF6B6B'
-        }
-      case 'windsurf':
+          path: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4l6 6h-4v4h-4v-4H6l6-6z",
+          viewBox: "0 0 24 24",
+          color: "#FF6B6B",
+        };
+      case "windsurf":
         return {
-          path: 'M2 20L12 4l10 16H2zm10-4a2 2 0 100-4 2 2 0 000 4z',
-          viewBox: '0 0 24 24',
-          color: '#00BFA5'
-        }
-      case 'zed':
+          path: "M2 20L12 4l10 16H2zm10-4a2 2 0 100-4 2 2 0 000 4z",
+          viewBox: "0 0 24 24",
+          color: "#00BFA5",
+        };
+      case "zed":
         return {
-          path: 'M3 3h18L3 21h18',
-          viewBox: '0 0 24 24',
-          color: '#F9CB00'
-        }
-      case 'idea':
+          path: "M3 3h18L3 21h18",
+          viewBox: "0 0 24 24",
+          color: "#F9CB00",
+        };
+      case "idea":
         return {
-          path: 'M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2zM9 21v-1h6v1a1 1 0 01-1 1h-4a1 1 0 01-1-1z',
-          viewBox: '0 0 24 24',
-          color: '#FE315D'
-        }
-      case 'webstorm':
+          path: "M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2zM9 21v-1h6v1a1 1 0 01-1 1h-4a1 1 0 01-1-1z",
+          viewBox: "0 0 24 24",
+          color: "#FE315D",
+        };
+      case "webstorm":
         return {
-          path: 'M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2zM9 21v-1h6v1a1 1 0 01-1 1h-4a1 1 0 01-1-1z',
-          viewBox: '0 0 24 24',
-          color: '#00CDD7'
-        }
-      case 'sublime':
+          path: "M12 2a7 7 0 00-4 12.74V17h8v-2.26A7 7 0 0012 2zM9 21v-1h6v1a1 1 0 01-1 1h-4a1 1 0 01-1-1z",
+          viewBox: "0 0 24 24",
+          color: "#00CDD7",
+        };
+      case "sublime":
         return {
-          path: 'M2 8l10-4 10 4M2 16l10 4 10-4M2 12l10-4 10 4',
-          viewBox: '0 0 24 24',
-          color: '#FF9800'
-        }
-      case 'vim':
+          path: "M2 8l10-4 10 4M2 16l10 4 10-4M2 12l10-4 10 4",
+          viewBox: "0 0 24 24",
+          color: "#FF9800",
+        };
+      case "vim":
         return {
-          path: 'M2 4l5 8-5 8h4l5-8-5-8H2zm10 0l5 8-5 8h4l5-8-5-8h-4z',
-          viewBox: '0 0 24 24',
-          color: '#019833'
-        }
+          path: "M2 4l5 8-5 8h4l5-8-5-8H2zm10 0l5 8-5 8h4l5-8-5-8h-4z",
+          viewBox: "0 0 24 24",
+          color: "#019833",
+        };
+      case "codeserver":
+        return {
+          path: "M17.58 2.58L12.7 7.47 6.93 3.07 2 5.13v13.74l4.93 2.06 5.77-4.4 4.88 4.89L22 18.87V5.13l-4.42-2.55zM6 15.6V8.4l3.5 3.6L6 15.6zm11 1.27l-4-3.87 4-3.87v7.74z",
+          viewBox: "0 0 24 24",
+          color: "#3B82F6",
+        };
       default:
         return {
-          path: 'M16 18l6-6-6-6M8 6l-6 6 6 6',
-          viewBox: '0 0 24 24',
-          color: 'var(--text-secondary)'
-        }
+          path: "M16 18l6-6-6-6M8 6l-6 6 6 6",
+          viewBox: "0 0 24 24",
+          color: "var(--text-secondary)",
+        };
     }
   }
 
   export function toggle() {
-    isOpen = !isOpen
+    isOpen = !isOpen;
   }
 
   export function open() {
-    isOpen = true
+    isOpen = true;
   }
 
   export function close() {
-    isOpen = false
+    isOpen = false;
   }
 
   async function openIDE(cmd: string) {
-    if (!workspaceStore.active) return
-    const workspacePath = workspaceStore.active.path
+    if (!workspaceStore.active) return;
+    const workspacePath = workspaceStore.active.path;
     try {
-      const result = await ideStore.open(cmd, workspacePath)
-      if (result.success) {
-        if ((result as any).url) {
-          window.open((result as any).url + '#' + workspacePath, '_blank')
-        }
-        uiStore.showToast(`Opening in ${cmd}...`, 'success')
+      const result = await ideStore.open(cmd, workspacePath);
+
+      // Check if this is a browser-based IDE with a URL
+      if (result.success && (result as any).url) {
+        window.open((result as any).url, "_blank", "noopener,noreferrer");
+        uiStore.showToast(`Opening in browser...`, "success");
+      } else if (result.success) {
+        // Desktop IDE (no URL returned)
+        uiStore.showToast(`Opening in ${cmd}...`, "success");
       } else {
-        uiStore.showToast(`Failed: ${result.error}`, 'error')
+        uiStore.showToast(`Failed: ${result.error}`, "error");
       }
     } catch (err: any) {
-      uiStore.showToast(`Failed to open ${cmd}: ${err?.message ?? err}`, 'error')
+      uiStore.showToast(
+        `Failed to open ${cmd}: ${err?.message ?? err}`,
+        "error",
+      );
     } finally {
-      isOpen = false
+      isOpen = false;
     }
   }
 
   function handleWindowClick(e: MouseEvent) {
-    const target = e.target as HTMLElement
-    if (isOpen && !target.closest('.ide-dropdown')) {
-      isOpen = false
+    const target = e.target as HTMLElement;
+    if (isOpen && !target.closest(".ide-dropdown")) {
+      isOpen = false;
     }
   }
 </script>
@@ -115,9 +131,33 @@
 <svelte:window onclick={handleWindowClick} />
 
 <div class="ide-dropdown">
-  <button class="ide-trigger" class:active={isOpen} onclick={toggle} title="Open in IDE">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-    <svg class="caret" class:open={isOpen} width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+  <button
+    class="ide-trigger"
+    class:active={isOpen}
+    onclick={toggle}
+    title="Open in IDE"
+  >
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      ><polyline points="16 18 22 12 16 6" /><polyline
+        points="8 6 2 12 8 18"
+      /></svg
+    >
+    <svg
+      class="caret"
+      class:open={isOpen}
+      width="8"
+      height="8"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="3"><polyline points="6 9 12 15 18 9" /></svg
+    >
   </button>
 
   {#if isOpen}
@@ -130,8 +170,15 @@
           {@const icon = ideIcon(ide.icon)}
           <button class="ide-option" onclick={() => openIDE(ide.cmd)}>
             <div class="ide-icon-wrap" style="background: {icon.color}1a;">
-              <svg width="16" height="16" viewBox={icon.viewBox} fill="none" stroke={icon.color} stroke-width="1.5">
-                <path d={icon.path}/>
+              <svg
+                width="16"
+                height="16"
+                viewBox={icon.viewBox}
+                fill="none"
+                stroke={icon.color}
+                stroke-width="1.5"
+              >
+                <path d={icon.path} />
               </svg>
             </div>
             <div class="ide-info">
@@ -164,7 +211,8 @@
     cursor: pointer;
     transition: all 120ms ease;
   }
-  .ide-trigger:hover, .ide-trigger.active {
+  .ide-trigger:hover,
+  .ide-trigger.active {
     background: var(--border);
     color: var(--text-primary);
   }
@@ -172,7 +220,10 @@
     transition: transform 150ms ease;
     opacity: 0.5;
   }
-  .caret.open { transform: rotate(180deg); opacity: 1; }
+  .caret.open {
+    transform: rotate(180deg);
+    opacity: 1;
+  }
 
   .ide-menu {
     position: absolute;
@@ -188,8 +239,14 @@
     animation: ide-menu-in 120ms ease;
   }
   @keyframes ide-menu-in {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .ide-menu-header {
@@ -223,7 +280,9 @@
     font-family: inherit;
     transition: background 80ms ease;
   }
-  .ide-option:hover { background: var(--border); }
+  .ide-option:hover {
+    background: var(--border);
+  }
 
   .ide-icon-wrap {
     width: 30px;

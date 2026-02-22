@@ -2,37 +2,37 @@
  * IDE management — detection of installed desktop IDEs, virtual IDE entries,
  * and workspace-aware open logic.
  */
-import { spawnSync, spawn } from 'node:child_process'
-import { execSync } from 'node:child_process'
+import { spawnSync, spawn, execSync } from 'node:child_process'
+import { getShellEnv } from './claude-cli.js'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 /** Candidate desktop IDEs to probe via `which` */
 const DESKTOP_IDE_CANDIDATES = [
-  { id: 'code',        name: 'VS Code',       cmd: 'code',        icon: 'vscode'      },
-  { id: 'cursor',      name: 'Cursor',        cmd: 'cursor',      icon: 'cursor'      },
-  { id: 'windsurf',    name: 'Windsurf',      cmd: 'windsurf',    icon: 'windsurf'    },
-  { id: 'zed',         name: 'Zed',           cmd: 'zed',         icon: 'zed'         },
-  { id: 'idea',        name: 'IntelliJ IDEA', cmd: 'idea',        icon: 'idea'        },
-  { id: 'webstorm',    name: 'WebStorm',      cmd: 'webstorm',    icon: 'webstorm'    },
-  { id: 'sublime',     name: 'Sublime Text',  cmd: 'subl',        icon: 'sublime'     },
-  { id: 'nvim',        name: 'Neovim',        cmd: 'nvim',        icon: 'vim'         },
-  { id: 'antigravity', name: 'Anti-Gravity',  cmd: 'antigravity', icon: 'antigravity' },
+  { id: 'code', name: 'VS Code', cmd: 'code', icon: 'vscode' },
+  { id: 'cursor', name: 'Cursor', cmd: 'cursor', icon: 'cursor' },
+  { id: 'windsurf', name: 'Windsurf', cmd: 'windsurf', icon: 'windsurf' },
+  { id: 'zed', name: 'Zed', cmd: 'zed', icon: 'zed' },
+  { id: 'idea', name: 'IntelliJ IDEA', cmd: 'idea', icon: 'idea' },
+  { id: 'webstorm', name: 'WebStorm', cmd: 'webstorm', icon: 'webstorm' },
+  { id: 'sublime', name: 'Sublime Text', cmd: 'subl', icon: 'sublime' },
+  { id: 'nvim', name: 'Neovim', cmd: 'nvim', icon: 'vim' },
+  { id: 'antigravity', name: 'Anti-Gravity', cmd: 'antigravity', icon: 'antigravity' },
 ]
 
 /** Virtual IDE entries always present regardless of local install */
 const VIRTUAL_IDES = [
   {
-    id:   'vscode-host',
+    id: 'vscode-host',
     name: 'VS Code (Local Host)',
-    cmd:  'code',
+    cmd: 'code',
     type: 'local',
     icon: 'vscode',
   },
   {
-    id:   'codeserver',
+    id: 'codeserver',
     name: 'Code Server',
-    cmd:  'http://localhost:8080',
+    cmd: 'codeserver', // Special marker; resolved to URL at runtime
     type: 'browser',
     icon: 'codeserver',
   },
@@ -90,6 +90,21 @@ function resolveWorkspacePath(workspacePath) {
   return workspacePath
 }
 
+/**
+ * Generate the code-server URL for a given workspace path.
+ * code-server works with local file paths; we pass the workspace path
+ * as a query parameter for the frontend to handle.
+ *
+ * @param {string} workspacePath
+ * @returns {string}
+ */
+function generateCodeServerUrl(workspacePath) {
+  // Use host.docker.internal to connect from client → code-server container
+  // Port 8081 is the public-facing port from docker-compose.yml
+  const baseUrl = 'http://localhost:8081'
+  return baseUrl
+}
+
 // ── Exports ───────────────────────────────────────────────────────────────────
 
 /**
@@ -114,27 +129,43 @@ export function getIDEs() {
 /**
  * Open a workspace in the specified IDE.
  *
- * - If `cmd` is an http/https URL, return the URL immediately — the caller is
- *   responsible for opening it in the browser.
- * - Otherwise spawn the IDE binary with the resolved workspace path.
+ * - For 'codeserver': return a URL object with code-server access URL
+ * - For http/https URLs: return the URL immediately for the caller to open
+ * - Otherwise spawn the IDE binary with the resolved workspace path
  *
- * @param {string} cmd            IDE binary name or URL
+ * @param {string} cmd            IDE binary name, URL, or special marker ('codeserver')
  * @param {string} workspacePath  Absolute path to the workspace directory
- * @returns {{ url: string } | { success: boolean, error?: string }}
+ * @returns {{ success: boolean, url?: string, error?: string }}
  */
 export function openIDE(cmd, workspacePath) {
-  // Browser-based IDE: return URL for the caller to open
-  if (/^https?:\/\//i.test(cmd)) {
-    return { url: cmd }
+  // code-server: generate URL pointing to code-server instance
+  if (cmd === 'codeserver') {
+    try {
+      const url = generateCodeServerUrl(workspacePath)
+      return { success: true, url }
+    } catch (err) {
+      console.error(`[ide] Failed to generate code-server URL:`, err.message)
+      return { success: false, error: err.message }
+    }
   }
 
+  // Browser-based IDE (http/https URL): return URL for the caller to open
+  if (/^https?:\/\//i.test(cmd)) {
+    return { success: true, url: cmd }
+  }
+
+  // Desktop IDE: spawn binary with workspace path
   const resolvedPath = resolveWorkspacePath(workspacePath)
 
   try {
     const child = spawn(cmd, [resolvedPath], {
       detached: true,
       stdio: 'ignore',
-      shell: false,
+      shell: true,
+      env: getShellEnv(),
+    })
+    child.on('error', (err) => {
+      console.error(`[ide] Error opening IDE "${cmd}":`, err.message)
     })
     child.unref()
     return { success: true }
