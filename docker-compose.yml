@@ -8,11 +8,14 @@ services:
       - "8081:8080"
     volumes:
       - workspaces:/home/coder/workspaces
+      - zeus-data:/home/coder/.zeus
     environment:
       - NODE_ENV=production
       - PORT=3000
-    entrypoint: ["/entrypoint.sh"]
+      - PASSWORD=savvydev
+    entrypoint: [ "/entrypoint.sh" ]
     restart: unless-stopped
 
 volumes:
   workspaces:
+  zeus-data:
