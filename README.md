@@ -47,20 +47,25 @@ Tailor Zeus to your preference with built-in themes including the default Claude
 
 ## Getting Started
 
-### Install
+### Local Development
+
+#### Install
 
 ```bash
 git clone <repo-url> && cd zeus
 npm install
+cd server && npm install && cd ..
 ```
 
-### Run in development
+#### Run in development
 
 ```bash
 npm run dev
 ```
 
-### Build for production
+This starts Vite (port 5173) and Express (port 3000) concurrently.
+
+#### Build for production (Desktop App)
 
 ```bash
 npm run dist:mac     # macOS (.dmg + .zip)
@@ -68,10 +73,41 @@ npm run dist:win     # Windows (NSIS installer)
 npm run dist:linux   # Linux (AppImage)
 ```
 
-### Requirements
+#### Requirements
 
 - **Node.js** 18+
 - **Claude Code** — `npm install -g @anthropic-ai/claude-code`
+
+### Docker Deployment
+
+The project includes a unified Docker container that bundles Zeus backend, code-server IDE, and Claude Code CLI.
+
+#### Build and Run
+
+```bash
+docker compose up --build
+```
+
+This builds and starts the `app` service, making Zeus available at:
+- **Zeus**: http://localhost:3000 (Express backend + Svelte frontend)
+- **code-server IDE**: http://localhost:8081 (VS Code in browser)
+
+#### Container Configuration
+
+The unified `app` service runs as the non-root `coder` user (UID 1000) with:
+
+| Component | Port | Description |
+|-----------|------|-------------|
+| Zeus API | 3000 | Express + Socket.IO backend |
+| code-server | 8080 | VS Code IDE (exposed as 8081 on host) |
+| Workspace Volume | `/home/coder/workspaces` | Mounted from `./workspaces` on host |
+
+#### Entrypoint
+
+The container runs `/entrypoint.sh`, which handles:
+- Starting the Claude CLI with `--serve-mcp` if available
+- Launching the Express backend for Zeus
+- Managing code-server access
 
 ---
 

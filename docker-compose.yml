@@ -1,33 +1,15 @@
 services:
-  code-server:
+  app:
     build:
       context: .
-      dockerfile: Dockerfile.codeserver # or ./code-server/Dockerfile
-    ports:
-      - "8081:8080"
-    volumes:
-      - ${HOME}/workspaces:/home/coder/workspaces
-      - code-server-data:/home/coder/.local/share/code-server
-    environment:
-      - PASSWORD=changeme
-    restart: unless-stopped
-
-  zeus:
-    build: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
+      - "8081:8080"
     volumes:
-      - ${HOME}:/host-home:ro
-      - zeus_data:/root/.zeus
-      - ${HOME}/workspaces:/workspace
+      - ./workspaces:/home/coder/workspaces
     environment:
+      - NODE_ENV=production
       - PORT=3000
-      - HOME=/root
-      - HOST_WORKSPACES_PATH=${HOME}/workspaces
-    depends_on:
-      - code-server
+    entrypoint: ["/entrypoint.sh"]
     restart: unless-stopped
-
-volumes:
-  zeus_data:
-  code-server-data:

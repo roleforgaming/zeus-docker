@@ -202,10 +202,40 @@ When modifying UI flows or Socket.IO wiring, update/add tests in the matching sp
 
 ## Docker
 
-- Multi‑stage Dockerfile: builder stage runs Vite build → production stage copies `dist/renderer/` + `server/` and installs Claude CLI via `curl`.  
-- Runtime dependencies: Node 20, Python 3, `make`, `g++`.  
-- Ports: 3000 (Express + Socket.IO server).  
-- Environment: `PATH` includes `~/.local/bin` for the Claude CLI; `EXPOSE 3000`.
+Unified container architecture combining Zeus backend, code-server IDE, and Claude Code CLI.
+
+### Container Architecture
+
+Single `app` service with:
+- **Base image**: `codercom/code-server:latest` (includes code-server + base tooling)
+- **Build stage**: Vite builds Svelte frontend → multi‑stage copies `dist/renderer/` + `server/`
+- **Runtime**: Node 20, Python 3, `make`, `g++` for build dependencies
+- **User**: Non-root `coder` user (UID 1000) for security isolation
+- **Ports**:
+  - 3000 (Zeus Express + Socket.IO backend)
+  - 8080 (code-server IDE, exposed as 8081 on host)
+- **Volumes**: `./workspaces:/home/coder/workspaces` (workspace mounting)
+- **Entrypoint**: `/entrypoint.sh` (manages Claude CLI and service startup)
+
+### Environment Variables
+
+```
+PORT=3000
+NODE_ENV=production
+PATH="/home/coder/.local/bin:${PATH}"
+```
+
+The `PATH` includes `~/.local/bin` for the Claude Code CLI installation.
+
+### Running in Docker
+
+```bash
+docker compose up --build
+```
+
+Access:
+- Zeus: http://localhost:3000
+- code-server IDE: http://localhost:8081
 
 Use Docker to validate production‑like behavior (CLI installation, PTY behavior, Socket.IO endpoints) beyond the dev setup.
 
