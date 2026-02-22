@@ -1,0 +1,23 @@
+# Start from the official code-server image
+FROM codercom/code-server:latest
+
+# Optional: set a default workspace dir inside the container
+ENV WORKSPACE_DIR=/home/coder/workspaces
+
+# Ensure required dirs exist and are owned by coder
+USER root
+RUN mkdir -p /home/coder/.local/share/code-server/extensions \
+    /home/coder/.cache/code-server \
+    /home/coder/.config/code-server \
+    ${WORKSPACE_DIR} \
+    && chown -R coder:coder /home/coder/.local \
+    /home/coder/.cache \
+    /home/coder/.config \
+    ${WORKSPACE_DIR}
+
+# Switch back to coder (the user code-server expects)
+USER coder
+
+# Default command: start code-server opening the workspace dir
+# Last non-flag argument is the folder to open.[web:35][web:42]
+CMD ["code-server", "/home/coder/workspaces"]
