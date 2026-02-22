@@ -64,6 +64,7 @@ import {
   stopSubagentWatch,
 } from "./subagent-watcher.js";
 import { getIDEs, openIDE } from "./ide.js";
+import { getZeusWorkspacePath, getProjectName } from "./workspace-config.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -122,34 +123,40 @@ io.on("connection", (socket) => {
   socket.on("workspace:add", (wsPath, cb) => {
     const store = getStore();
     if (typeof wsPath !== "string" || !wsPath) return cb(null);
-    // Extract workspace name from the provided path
-    const name = path.basename(wsPath);
-    // Create workspace under /app/workspaces/<name>
-    const workspacesRoot = path.join(process.cwd(), "workspaces");
-    const dirPath = path.join(workspacesRoot, name);
+
+    const projectName = getProjectName(wsPath);
+    const dirPath = getZeusWorkspacePath(projectName);
+
     try {
-      // Ensure parent workspaces directory exists
-      if (!fs.existsSync(workspacesRoot)) {
-        fs.mkdirSync(workspacesRoot, { recursive: true });
-      }
-      // Ensure specific workspace directory exists
+      // Ensure workspace directory exists
       if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
       }
-      if (!fs.statSync(dirPath).isDirectory()) return cb(null);
-    } catch {
-      return cb(null);
+
+      // Check if already in store
+      if (!store.workspaces.find((w) => w.path === dirPath)) {
+        // Create sentinel file for workspace integrity
+        const sentinelPath = path.join(dirPath, "ZEUS_WORKSPACE.md");
+        if (!fs.existsSync(sentinelPath)) {
+          fs.writeFileSync(
+            sentinelPath,
+            "# Zeus Workspace\n\nThis directory is managed by Zeus.\n",
+            "utf-8",
+          );
+        }
+
+        store.workspaces.push({
+          path: dirPath,
+          name: projectName,
+          created: new Date().toISOString(),
+        });
+        saveStore();
+      }
+      cb(dirPath);
+    } catch (err) {
+      console.error(`[zeus] Failed to add workspace at ${dirPath}:`, err);
+      cb(null);
     }
-    if (!store.workspaces.find((w) => w.path === dirPath)) {
-      store.workspaces.push({
-        path: dirPath,
-        name,
-        addedAt: Date.now(),
-        lastOpened: Date.now(),
-      });
-      saveStore();
-    }
-    cb({ path: dirPath, name });
   });
 
   socket.on("workspace:remove", (wsPath, cb) => {
