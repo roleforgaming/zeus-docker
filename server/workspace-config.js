@@ -1,47 +1,35 @@
 /**
  * Centralized workspace path configuration and helpers.
  *
- * Path structure across containers:
- * - Host machine: ${HOME}/workspaces (or ${HOST_WORKSPACES_PATH})
- * - Zeus container: /workspace (bind-mounted from host)
- * - Code-Server container: /home/coder/workspaces (bind-mounted from host)
+ * Unified container structure:
+ * - Single container with Zeus server + Code-Server
+ * - Workspace root: /home/coder/workspaces
+ * - All components use the same path resolution
  */
 
 import path from 'node:path'
 
-export const ZEUS_WORKSPACES_ROOT = '/workspace'
-export const CODESERVER_WORKSPACES_ROOT = '/home/coder/workspaces'
+export const WORKSPACES_ROOT = '/home/coder/workspaces'
 
-export function getZeusWorkspacePath(projectName) {
+/**
+ * Get the absolute path to a workspace directory.
+ *
+ * @param {string} projectName
+ * @returns {string} Absolute workspace path
+ */
+export function getWorkspacePath(projectName) {
   if (!projectName || typeof projectName !== 'string') {
     throw new Error('projectName must be a non-empty string')
   }
-  return path.join(ZEUS_WORKSPACES_ROOT, projectName)
+  return path.join(WORKSPACES_ROOT, projectName)
 }
 
-export function getCodeServerWorkspacePath(projectName) {
-  if (!projectName || typeof projectName !== 'string') {
-    throw new Error('projectName must be a non-empty string')
-  }
-  return path.posix.join(CODESERVER_WORKSPACES_ROOT, projectName)
-}
-
-export function zeusPathToCodeServerPath(zeusPath) {
-  if (!zeusPath || typeof zeusPath !== 'string') {
-    throw new Error('zeusPath must be a non-empty string')
-  }
-
-  const normalizedPath = path.posix.normalize(zeusPath)
-
-  if (normalizedPath.startsWith(ZEUS_WORKSPACES_ROOT)) {
-    const relativePath = path.posix.relative(ZEUS_WORKSPACES_ROOT, normalizedPath)
-    return path.posix.join(CODESERVER_WORKSPACES_ROOT, relativePath)
-  }
-
-  const basename = path.basename(normalizedPath)
-  return path.posix.join(CODESERVER_WORKSPACES_ROOT, basename)
-}
-
+/**
+ * Extract project name from a workspace path.
+ *
+ * @param {string} workspacePath
+ * @returns {string} Project name (basename of path)
+ */
 export function getProjectName(workspacePath) {
   if (!workspacePath || typeof workspacePath !== 'string') {
     throw new Error('workspacePath must be a non-empty string')
@@ -49,15 +37,19 @@ export function getProjectName(workspacePath) {
   return path.basename(workspacePath)
 }
 
+/**
+ * Debug helper: show workspace path resolution.
+ *
+ * @param {string} projectName
+ * @returns {object} Path information for debugging
+ */
 export function debugPaths(projectName) {
   if (!projectName || typeof projectName !== 'string') {
     throw new Error('projectName must be a non-empty string')
   }
   return {
     projectName,
-    zeusRoot: ZEUS_WORKSPACES_ROOT,
-    zeusPath: getZeusWorkspacePath(projectName),
-    codeServerRoot: CODESERVER_WORKSPACES_ROOT,
-    codeServerPath: getCodeServerWorkspacePath(projectName),
+    workspacesRoot: WORKSPACES_ROOT,
+    workspacePath: getWorkspacePath(projectName),
   }
 }

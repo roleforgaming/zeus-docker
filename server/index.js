@@ -64,7 +64,11 @@ import {
   stopSubagentWatch,
 } from "./subagent-watcher.js";
 import { getIDEs, openIDE } from "./ide.js";
-import { getZeusWorkspacePath, getProjectName, debugPaths } from "./workspace-config.js";
+import {
+  getWorkspacePath,
+  getProjectName,
+  debugPaths,
+} from "./workspace-config.js";
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -94,21 +98,21 @@ if (fs.existsSync(staticDir)) {
 }
 
 // Debug endpoint: show workspace path resolution
-app.get('/api/debug/workspace-paths/:projectName', (req, res) => {
+app.get("/api/debug/workspace-paths/:projectName", (req, res) => {
   try {
-    const { projectName } = req.params
-    const pathInfo = debugPaths(projectName)
+    const { projectName } = req.params;
+    const pathInfo = debugPaths(projectName);
     res.json({
       success: true,
       data: pathInfo,
-    })
+    });
   } catch (err) {
     res.status(400).json({
       success: false,
       error: err.message,
-    })
+    });
   }
-})
+});
 
 // ── Init Global State ─────────────────────────────────────────────────────────
 
@@ -142,7 +146,7 @@ io.on("connection", (socket) => {
     if (typeof wsPath !== "string" || !wsPath) return cb(null);
 
     const projectName = getProjectName(wsPath);
-    const dirPath = getZeusWorkspacePath(projectName);
+    const dirPath = getWorkspacePath(projectName);
 
     try {
       // Ensure workspace directory exists
