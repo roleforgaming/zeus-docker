@@ -1,128 +1,212 @@
-# Trekker Quickstart
+# Project
 
-Issue tracker for AI agents. Data stored in `.trekker/trekker.db`.
+Zeus is a high‑performance desktop terminal for Claude Code — a local Express + Socket.IO server with a Svelte 5 frontend that provides workspace management, chat interface, terminal tabs, Skills/MCP panels, and IDE integration.
 
-## Setup
-trekker init                    # Initialize
-trekker wipe -y                 # Remove all data
+***
 
-## Core Rules
-1. Set status to `in_progress` when starting, `completed` when done
-2. Add summary comment before marking task complete
-3. Use `--toon` flag for token-efficient output
-4. When epic is done, use `trekker epic complete EPIC-n` to archive all tasks
-5. Write detailed descriptions with implementation plans - future agents need this context
-6. Comments are your external memory - add summaries before context resets
+## Session Startup Protocol
+
+1. Identify the domain of the task: **Frontend** (Svelte stores/components), **Backend** (Node.js handlers), **Communication** (Socket.IO events), **Tests** (Playwright), or **Infra** (Docker/CLI tooling).  
+2. Before opening many files, check for any relevant docs under `docs/` or `docs/summaries/` (e.g. architecture/feature overviews) and read those first.  
+3. Use code search (ripgrep or MCP search tools) to locate symbols, events, or components; do *not* manually scan entire directories.  
+4. For store/state issues, start in `src/renderer/src/lib/stores/` — each store owns a domain and calls Zeus API methods.  
+5. For backend logic, start in `server/index.js` (event hub) and follow to specialist modules like `claude-session.js`, `terminal.js`, etc.  
+6. For Socket.IO communication, trace the event name in both `server/index.js` and the corresponding store.  
+7. Look at existing tests in `tests/` before adding new functionality, and update/add tests when changing observable behavior.
+
+***
+
+## Project Tree
+.
+├── AGENTS.md
+├── CLAUDE.md
+├── Dockerfile
+├── README.md
+├── assets
+│   ├── right-panel.png
+│   ├── settings.png
+│   └── zeus-main.png
+├── dev.log
+├── dev.pid
+├── docker-compose.yml
+├── docs
+│   ├── archive
+│   │   └── handoffs
+│   └── summaries
+├── package-lock.json
+├── package.json
+├── playwright.config.ts
+├── resources
+│   ├── icon.icns
+│   ├── icon.ico
+│   ├── icon.png
+│   └── icon.svg
+├── server
+│   ├── claude-cli.js
+│   ├── claude-config.js
+│   ├── claude-session.js
+│   ├── files.js
+│   ├── ide.js
+│   ├── index.js
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── skills.js
+│   ├── store.js
+│   ├── subagent-watcher.js
+│   └── terminal.js
+├── src
+│   └── renderer
+│       ├── index.html
+│       └── src
+├── svelte.config.js
+├── test-results
+├── tests
+│   ├── app-shell.spec.ts
+│   ├── conversation.spec.ts
+│   ├── helpers
+│   │   └── app.ts
+│   ├── ide.spec.ts
+│   ├── sidebar.spec.ts
+│   └── terminal.spec.ts
+├── tsconfig.json
+├── tsconfig.web.json
+└── vite.config.ts
+
+14 directories, 40 files
+
+***
 
 ## Commands
 
-### Epics (features/milestones)
-trekker epic create -t "Title" [-d "desc"] [-p 0-5]
-trekker epic list [--status <status>]
-trekker epic show EPIC-1
-trekker epic update EPIC-1 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>]
-trekker epic complete EPIC-1   # Complete and archive all tasks
-trekker epic delete EPIC-1
+```bash
+# Install
+npm install
+cd server && npm install && cd ..
 
-### Tasks
-trekker task create -t "Title" [-d "desc"] [-p 0-5] [-e EPIC-1] [--tags "a,b"]
-trekker task list [--status <status>] [--epic EPIC-1]
-trekker task show TREK-1
-trekker task update TREK-1 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>] [--tags "a,b"] [-e EPIC-1] [--no-epic]
-trekker task delete TREK-1
+# Development (concurrent: Vite on 5173 + Express on 3000)
+npm run dev
 
-### Subtasks
-trekker subtask create TREK-1 -t "Title" [-d "desc"] [-p 0-5]
-trekker subtask list TREK-1
-trekker subtask update TREK-2 [-t "Title"] [-d "desc"] [-p 0-5] [-s <status>]
-trekker subtask delete TREK-2
+# Production
+npm run build       # Vite → dist/renderer/
+npm run start       # Build + Express
 
-### Comments (external memory)
-trekker comment add TREK-1 -a "agent" -c "content"
-trekker comment list TREK-1
-trekker comment update CMT-1 -c "new content"
-trekker comment delete CMT-1
-
-### Dependencies
-trekker dep add TREK-2 TREK-1   # TREK-2 depends on TREK-1
-trekker dep remove TREK-2 TREK-1
-trekker dep list TREK-1
-
-### Search (full-text across all entities)
-trekker search "query" [--type epic,task,subtask,comment] [--status <status>]
-trekker search "auth bug" --type task --limit 10
-
-### History (audit log of all changes)
-trekker history [--entity TREK-1] [--type task] [--action create,update,delete]
-trekker history --since 2025-01-01 --limit 20
-
-### List (unified view of all items)
-trekker list [--type epic,task,subtask] [--status <status>] [--priority 0,1]
-trekker list --sort priority:asc,created:desc --limit 20
-
-## Status Values
-Tasks: todo, in_progress, completed, wont_fix, archived
-Epics: todo, in_progress, completed, archived
-
-## Priority Scale
-0=critical, 1=high, 2=medium (default), 3=low, 4=backlog, 5=someday
-
-## Agent Workflow
-
-```mermaid
-flowchart TD
-    A[Start Session] --> B[Check in_progress tasks]
-    B --> C{Found task?}
-    C -->|Yes| D[Read task + comments]
-    C -->|No| E[Pick next from backlog]
-    D --> F[Work on task]
-    E --> F
-    F --> G{Switching context?}
-    G -->|Yes| H[Add checkpoint comment]
-    G -->|No| I{Task done?}
-    H --> J[End or continue]
-    I -->|Yes| K[Add summary comment]
-    I -->|No| F
-    K --> L[Mark completed]
-    L --> M{All epic tasks done?}
-    M -->|Yes| N[trekker epic complete]
-    M -->|No| E
-    N --> E
+# E2E Tests (sequential, 1 worker)
+npx playwright test
+npx playwright test --ui                     # Interactive mode
+npx playwright test tests/terminal.spec.ts   # Single test file
 ```
 
-## Session Start
-trekker --toon task list --status in_progress
-trekker --toon comment list TREK-1
+Notes:
 
-## Working
-trekker task update TREK-1 -s in_progress
-trekker comment add TREK-1 -a "agent" -c "Analysis: ..."
-# ... do work ...
-trekker comment add TREK-1 -a "agent" -c "Summary: implemented X in files A, B"
-trekker task update TREK-1 -s completed
+- Vite proxies `/socket.io` to port 3000 in dev mode.  
+- No lint script; use `svelte-check` and TypeScript for static checks as needed.  
 
-## Before Context Reset
-trekker comment add TREK-1 -a "agent" -c "Checkpoint: done A,B. Next: C. Files: x.ts, y.ts"
+***
 
-## Writing Effective Descriptions
+## Architecture
 
-Good descriptions help future agents continue your work:
+### Frontend
 
-### Epic descriptions should include:
-- Goal and success criteria
-- High-level implementation approach
-- Key files/modules affected
+Stack: Svelte 5 + Vite. All app state lives in `src/renderer/src/lib/stores/` as reactive modules. Entry point: `src/renderer/src/main.ts` → `App.svelte`.
 
-### Task descriptions should include:
-- What needs to be done (specific, actionable)
-- Implementation steps
-- Files to create/modify
-- Acceptance criteria
+Key directories:
 
-### Example:
-Bad: "Add authentication"
-Good: "Implement JWT auth for API.
-- Add /auth/login, /auth/logout endpoints
-- Create middleware in src/middleware/auth.ts
-- Use bcrypt for password hashing
-- Protect: /api/users, /api/tasks"
+- `lib/stores/` — reactive modules:  
+  - `claude.svelte.ts`, `claude-session.svelte.ts` — Claude sessions, streaming, tabs, history.  
+  - `workspace.svelte.ts` — workspace list, selection, persistence.  
+  - `terminal.svelte.ts` — PTY terminal state per tab.  
+  - `ui.svelte.ts` — sidebar/panel visibility, modals.  
+  - `mcp.svelte.ts` — MCP server status and config.  
+  - `skills.svelte.ts` — custom commands discovery.  
+  - `ide.svelte.ts`, `plugin.svelte.ts`, `markdown.svelte.ts` — IDE integration, plugins, markdown.  
+- `lib/components/` — Svelte components (InputBar, ChatFlow, TerminalPanel, SettingsPanel, etc.).  
+- `lib/types/` — central type definitions (see Key Types).  
+- `lib/zeus.ts` — Socket.IO client init, shared across stores via import.
+
+Pattern: stores emit Socket.IO events → backend handlers call specialist modules → callbacks or events update client state. No REST API.
+
+### Backend
+
+Stack: Express + Socket.IO (Node.js). Central hub: `server/index.js` (~560 lines) — all Socket.IO event handlers live here. Specialist modules handle specific domains.
+
+Key files:
+
+- `index.js` — event hub (all Socket.IO handlers).  
+- `claude-session.js` — spawns `claude` CLI as PTY, streams output line‑by‑line.  
+- `terminal.js` — user command PTY, shell spawning.  
+- `claude-config.js` — reads/writes `~/.claude/claude.json` and MCP config.  
+- `files.js` — git operations, markdown listing, file I/O.  
+- `skills.js` — scans `~/.claude/commands/` and `.claude/commands/` for custom skills.  
+- `store.js` — in‑memory JSON persistence (workspaces, preferences) flushed to disk.  
+- `subagent-watcher.js` — watches `.trekker/` for parallel agent activity.
+
+Socket.IO pattern: client emits event → `index.js` handler → calls specialist module → sends response/broadcast back.
+
+***
+
+## Communication
+
+- **Terminal rendering**: `node-pty` spawns PTY → streams `terminal:data` events → xterm.js + WebGL addon renders in the browser.  
+- **Claude session flow**: InputBar → `claude-session:send` event → backend spawns `claude [--resume id]` PTY → output streamed → frontend parses into `ClaudeConversation` with typed content blocks.  
+- **State sync**: stores call API methods (typed by `ZeusAPI`) → Socket.IO events → backend handlers → responses update reactive state.
+
+***
+
+## Key Types
+
+Location: `src/renderer/src/lib/types/index.ts`:
+
+- `Workspace` — project directory entry (path, name, timestamps).  
+- `ClaudeConversation` — active chat session with messages, streaming state, pending prompts, subagent tracking.  
+- `ClaudeMessage` / `ContentBlock` — streaming chat content (text, tool_use, tool_result, thinking).  
+- `TerminalSession` — PTY state with command history.  
+- `SubagentInfo` — parallel agent task tracking (name, color, status, tools).  
+- `CustomSkill` — slash command/skill metadata (name, path, scope, category).  
+- `ZeusAPI` — complete browser↔backend RPC interface (all Socket.IO method signatures).
+
+When changing core domain behavior, update these types first, then adjust stores and backend handlers to match.
+
+***
+
+## Frontend Stores
+
+Each store owns a domain and exposes reactive state + Socket.IO methods:
+
+| Store                      | Domain                                           |
+|----------------------------|--------------------------------------------------|
+| `claude.svelte.ts`         | Claude sessions, streaming, tab management       |
+| `claude-session.svelte.ts` | Session history and persistence                  |
+| `workspace.svelte.ts`      | Workspace list, selection, persistence           |
+| `terminal.svelte.ts`       | PTY terminal state per tab                       |
+| `ui.svelte.ts`             | Sidebar/panel visibility, modals                 |
+| `mcp.svelte.ts`            | MCP server status and config                     |
+| `skills.svelte.ts`         | Custom commands discovery                        |
+
+Navigation rule:
+
+- Start from the relevant store for the feature you’re changing, then locate the corresponding components and backend events (`ZeusAPI` type + `server/index.js` handlers).
+
+***
+
+## Tests
+
+Type: E2E only (Playwright). All tests are sequential, 1 worker.
+
+- Location: `tests/` — split by domain: `app-shell.spec.ts`, `conversation.spec.ts`, `terminal.spec.ts`, `sidebar.spec.ts`.  
+- Helpers: `tests/helpers/app.ts` — `loadApp()` waits for Socket.IO WebSocket handshake and app mount.  
+- Config: `playwright.config.ts` — `baseURL` `http://localhost:3000`, 45s timeout, trace retention on failure.
+
+When modifying UI flows or Socket.IO wiring, update/add tests in the matching spec file.
+
+***
+
+## Docker
+
+- Multi‑stage Dockerfile: builder stage runs Vite build → production stage copies `dist/renderer/` + `server/` and installs Claude CLI via `curl`.  
+- Runtime dependencies: Node 20, Python 3, `make`, `g++`.  
+- Ports: 3000 (Express + Socket.IO server).  
+- Environment: `PATH` includes `~/.local/bin` for the Claude CLI; `EXPOSE 3000`.
+
+Use Docker to validate production‑like behavior (CLI installation, PTY behavior, Socket.IO endpoints) beyond the dev setup.
+
+***

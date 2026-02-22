@@ -1,5 +1,11 @@
 import { type Page } from "@playwright/test";
 
+declare global {
+  interface Window {
+    zeus: any;
+  }
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 
 export const APP_URL = "http://localhost:3000";
@@ -32,6 +38,21 @@ export async function loadApp(page: Page) {
   await page.waitForLoadState("networkidle", { timeout: APP_READY_TIMEOUT });
   // Confirm the sidebar is visible (App.svelte fully mounted)
   await page.waitForSelector("aside.sidebar", {
+    state: "visible",
+    timeout: APP_READY_TIMEOUT,
+  });
+
+  const cwd = process.cwd();
+
+  // Programmatically ensure a workspace is active (fixes the 'Select workspace' or wrong workspace state)
+  await page.evaluate(async (path) => {
+    if (window.zeus?.workspace) {
+      await window.zeus.workspace.add(path);
+    }
+  }, cwd);
+
+  // Wait for the UI to update and display an active workspace name
+  await page.waitForSelector('.ws-trigger-name:not(.placeholder)', {
     state: "visible",
     timeout: APP_READY_TIMEOUT,
   });

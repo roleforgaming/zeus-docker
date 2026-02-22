@@ -2,7 +2,7 @@ services:
   code-server:
     image: codercom/code-server:latest
     ports:
-      - "8080:8080"
+      - "8081:8080"
     volumes:
       - ${HOME}/workspaces:/workspace
       - code-server-data:/home/coder/.local/share/code-server
