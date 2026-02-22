@@ -8,14 +8,13 @@ mkdir -p /home/coder/workspaces
 
 # Start Zeus in background
 echo "[zeus-entrypoint] Starting Zeus server on port 3000..."
-cd /home/coder/server
-node index.js &
+node /home/coder/zeus/server/index.js &
 ZEUS_PID=$!
 echo "[zeus-entrypoint] Zeus PID: $ZEUS_PID"
 
 # Start code-server in background
 echo "[zeus-entrypoint] Starting code-server on port 8080..."
-code-server /home/coder/workspaces &
+code-server --port 8080 /home/coder/workspaces &
 CODESERVER_PID=$!
 echo "[zeus-entrypoint] code-server PID: $CODESERVER_PID"
 

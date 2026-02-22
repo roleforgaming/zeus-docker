@@ -44,18 +44,22 @@ RUN mkdir -p /home/coder/workspaces && \
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # Copy server package files and install dependencies
-COPY server/package*.json ./
-RUN npm ci --production
+COPY server/package*.json ./server/
+RUN cd server && npm ci --production
 
 # Copy server source code
-COPY server/ ./
+COPY server/ ./server/
 
 # Copy built frontend from builder stage
+# Mirrors dev layout: dist/ is a sibling of server/, so ../dist/renderer resolves correctly
 COPY --from=builder /app/dist/renderer ./dist/renderer
 
 # Copy entrypoint script if it exists
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+
+# Fix ownership and permissions for coder user
+RUN chown -R coder:coder /home/coder/zeus /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 # Switch to coder user (non-root)
 USER coder
