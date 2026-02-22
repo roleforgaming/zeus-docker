@@ -119,7 +119,7 @@ app.get("/api/debug/workspace-paths/:projectName", (req, res) => {
 initStore();
 
 // Placeholder emit — replaced per connection
-let _socketEmit = (_event, _data) => {};
+let _socketEmit = (_event, _data) => { };
 initClaudeSession(pty, (event, data) => _socketEmit(event, data));
 initSubagentWatcher((event, data) => _socketEmit(event, data));
 
@@ -316,6 +316,7 @@ io.on("connection", (socket) => {
         detached: true,
         stdio: "ignore",
       });
+      child.on('error', () => { });
       child.unref();
     } catch {
       /* best-effort */
@@ -336,6 +337,7 @@ io.on("connection", (socket) => {
         detached: true,
         stdio: "ignore",
       });
+      child.on('error', () => { });
       child.unref();
     } catch {
       /* best-effort */
