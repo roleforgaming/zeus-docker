@@ -6,7 +6,7 @@
   // Dynamically determine code-server base URL based on hostname
   // Production: redirect to subdomain (https://code.intothesavvyverse.us)
   // Development: use localhost (http://localhost:8081)
-  $: codeServerBase = window.location.hostname.includes('intothesavvyverse.us')
+  const codeServerBase = window.location.hostname.includes('intothesavvyverse.us')
     ? 'https://code.intothesavvyverse.us'
     : 'http://localhost:8081'
 
