@@ -166,6 +166,10 @@
       isOpen = false;
     }
   }
+
+  // Filter IDEs: browser-based for "Open in IDE", local for "Open on Local Host"
+  const browserIDEs = $derived(ideStore.list.filter(ide => ide.type === 'browser'));
+  const localIDEs = $derived(ideStore.list.filter(ide => ide.type === 'local' || !ide.type));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -203,11 +207,9 @@
 
   {#if isOpen}
     <div class="ide-menu">
-      <div class="ide-menu-header">Open in IDE</div>
-      {#if ideStore.list.length === 0}
-        <div class="ide-empty">No IDEs detected</div>
-      {:else}
-        {#each ideStore.list as ide (ide.id)}
+      {#if browserIDEs.length > 0}
+        <div class="ide-menu-header">Open in IDE</div>
+        {#each browserIDEs as ide (ide.id)}
           {@const icon = ideIcon(ide.icon)}
           <button class="ide-option" onclick={() => openIDE(ide.cmd, ide.id)}>
             <div class="ide-icon-wrap" style="background: {icon.color}1a;">
@@ -230,11 +232,12 @@
         {/each}
       {/if}
 
-      <!-- Host Agent: Open in Local IDE -->
-      {#if ideStore.list.length > 0}
-        <div class="ide-menu-divider" />
+      {#if localIDEs.length > 0}
+        {#if browserIDEs.length > 0}
+          <div class="ide-menu-divider" />
+        {/if}
         <div class="ide-menu-header">Open on Local Host</div>
-        {#each ideStore.list as ide (ide.id)}
+        {#each localIDEs as ide (ide.id)}
           {@const icon = ideIcon(ide.icon)}
           <button
             class="ide-option"
@@ -264,6 +267,10 @@
             {/if}
           </button>
         {/each}
+      {/if}
+
+      {#if browserIDEs.length === 0 && localIDEs.length === 0}
+        <div class="ide-empty">No IDEs detected</div>
       {/if}
     </div>
   {/if}
