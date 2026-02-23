@@ -1,34 +1,36 @@
 <script lang="ts">
-  import { ideStore } from '../stores/ide.svelte.js'
   import { workspaceStore } from '../stores/workspace.svelte.js'
   import { uiStore } from '../stores/ui.svelte.js'
-  import IconCode from './icons/IconCode.svelte'
+  // import { ideStore } from '../stores/ide.svelte.js' // Replaced with client-side URL generation
 
-  async function openIDE(cmd: string, ideId: string) {
-    if (!workspaceStore.active) return
-    const workspacePath = workspaceStore.active.path
+  // Determine if running locally or remotely
+  const isLocal = $derived(
+    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  )
+
+  // Generate code-server URL based on environment
+  const codeServerUrl = $derived(
+    isLocal ? 'http://localhost:8081' : `${window.location.origin}/code`
+  )
+
+  function openCodeServer() {
+    if (!workspaceStore.active) {
+      uiStore.showToast('No active workspace selected', 'error')
+      return
+    }
+
+    const wsPath = workspaceStore.active.path
+    const folder = encodeURIComponent(wsPath)
+    const targetUrl = `${codeServerUrl}?folder=${folder}`
+
     try {
-      const result = await ideStore.open(cmd, workspacePath) as { success: boolean; error?: string; url?: string }
-      
-      // Check if this is a browser-based IDE with a URL (code-server or http/https)
-      if (result.success && result.url) {
-        // For code-server, open the URL in a new tab
-        if (ideId === 'codeserver') {
-          window.open(result.url, '_blank', 'noopener,noreferrer')
-          uiStore.showToast(`Opening in Code Server...`, 'success')
-        } else {
-          // For other URLs, also open in new tab
-          window.open(result.url, '_blank', 'noopener,noreferrer')
-          uiStore.showToast(`Opening in browser...`, 'success')
-        }
-      } else if (result.success) {
-        // Desktop IDE (no URL returned)
-        uiStore.showToast(`Opening in ${cmd}...`, 'info')
-      } else {
-        uiStore.showToast(`Failed: ${result.error}`, 'error')
-      }
+      window.open(targetUrl, '_blank')
+      uiStore.showToast('Opening workspace in code-server...', 'info')
     } catch (err) {
-      uiStore.showToast(`Failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      uiStore.showToast(
+        `Failed to open: ${err instanceof Error ? err.message : String(err)}`,
+        'error'
+      )
     } finally {
       uiStore.ideModalOpen = false
     }
@@ -45,17 +47,16 @@
         <button class="close" onclick={() => (uiStore.ideModalOpen = false)}>&times;</button>
       </div>
       <div class="body">
-        {#if ideStore.list.length === 0}
-          <p class="empty">No supported IDEs found on your system.</p>
-        {:else}
-          {#each ideStore.list as ide (ide.id)}
-            <button class="ide-item" onclick={() => openIDE(ide.cmd, ide.id)}>
-              <div class="ide-icon"><IconCode size={18} /></div>
-              <span class="ide-name">{ide.name}</span>
-              <span class="ide-cmd">{ide.cmd}</span>
-            </button>
-          {/each}
-        {/if}
+        <button class="open-button" onclick={openCodeServer}>
+          🚀 Open Workspace in code-server
+        </button>
+        <p class="info-text">
+          {#if isLocal}
+            Opening <code>localhost:8081</code>
+          {:else}
+            Opening <code>{window.location.origin}/code</code>
+          {/if}
+        </p>
       </div>
     </div>
   </div>
@@ -87,21 +88,28 @@
     color: var(--text-muted); border-radius: 6px; cursor: pointer; font-size: 20px;
   }
   .close:hover { background: var(--border); color: var(--text-primary); }
-  .body { padding: 16px 20px; overflow-y: auto; }
-  .empty { color: var(--text-secondary); font-size: 13px; text-align: center; padding: 20px; }
+  .body { padding: 20px; }
 
-  .ide-item {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 12px; border-radius: 6px; cursor: pointer;
-    border: none; background: transparent; color: var(--text-primary);
-    font-size: 14px; font-weight: 500; width: 100%; text-align: left;
-    font-family: inherit; transition: background 120ms ease;
+  .open-button {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 12px 16px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg-raised);
+    color: var(--text-primary); font-size: 14px; font-weight: 600;
+    font-family: inherit; transition: all 120ms ease;
   }
-  .ide-item:hover { background: var(--border); }
-  .ide-icon {
-    width: 32px; height: 32px; border-radius: 6px; background: var(--bg-raised);
-    display: flex; align-items: center; justify-content: center; color: var(--text-secondary);
+  .open-button:hover {
+    background: var(--border); border-color: var(--text-primary);
   }
-  .ide-name { flex: 1; }
-  .ide-cmd { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .open-button:active {
+    opacity: 0.8;
+  }
+
+  .info-text {
+    margin-top: 12px; font-size: 12px; color: var(--text-secondary);
+    text-align: center;
+  }
+  .info-text code {
+    background: var(--bg-raised); padding: 2px 6px; border-radius: 4px;
+    font-family: var(--font-mono); color: var(--text-primary);
+  }
 </style>
