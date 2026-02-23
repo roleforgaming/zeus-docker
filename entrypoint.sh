@@ -6,6 +6,9 @@ echo "[zeus-entrypoint] Starting unified Zeus + code-server container..."
 # Ensure workspace directory exists
 mkdir -p /home/coder/workspaces
 
+# Set environment variable to indicate we're in the unified container
+export ZEUS_CONTAINER_MODE=true
+
 # Start Zeus in background
 echo "[zeus-entrypoint] Starting Zeus server on port 3000..."
 node /home/coder/zeus/server/index.js &

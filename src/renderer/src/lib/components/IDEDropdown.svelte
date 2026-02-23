@@ -152,8 +152,9 @@
           uiStore.showToast(`Opening ${ideName} on local host...`, "success");
         }
       } else {
-        const errorMsg = response.error || response.message || "Unknown error";
-        uiStore.showToast(`Failed to open ${ideName}: ${errorMsg}`, "error");
+        // Show the full error message if available (may include helpful suggestions)
+        const errorMsg = response.message || response.error || "Unknown error";
+        uiStore.showToast(errorMsg, "error");
       }
     } catch (err: any) {
       const errorMsg = err?.message ?? String(err);

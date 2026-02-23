@@ -98,6 +98,15 @@ export async function openLocalIDE(session, ideType, workspacePath) {
     // Call Host Agent to launch IDE
     const result = await client.launch(ideType, workspacePath);
 
+    // If Host Agent is unreachable (common in Docker), suggest code-server
+    if (result.error === "NETWORK_ERROR") {
+      return {
+        success: false,
+        message: `Cannot reach Host Agent at ${HOST_AGENT_URL}. If running in Docker, use "Open in IDE" → "Code Server" instead, or use "Open on Local Host" on the host machine.`,
+        error: "HOST_AGENT_UNREACHABLE",
+      };
+    }
+
     // Return result directly from client
     return result;
   } catch (err) {

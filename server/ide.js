@@ -128,6 +128,12 @@ export function getIDEs() {
   const detectedIds = new Set(detected.map((d) => d.id));
   const uniqueVirtual = VIRTUAL_IDES.filter((v) => !detectedIds.has(v.id));
 
+  // In container mode, hide local IDE options (Host Agent won't be available)
+  // Only show browser-based IDEs (like code-server)
+  if (process.env.ZEUS_CONTAINER_MODE === "true") {
+    return uniqueVirtual.filter((ide) => ide.type === "browser");
+  }
+
   return [...uniqueVirtual, ...detected];
 }
 
