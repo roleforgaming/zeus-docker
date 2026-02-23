@@ -2,8 +2,14 @@
   import { ideStore } from "../stores/ide.svelte.js";
   import { workspaceStore } from "../stores/workspace.svelte.js";
   import { uiStore } from "../stores/ui.svelte.js";
+  import { createIDEService } from "../services/ide.js";
+  import { io } from "socket.io-client";
 
   let isOpen = $state(false);
+  let isOpeningLocalIDE = $state(false);
+  let ideService = createIDEService(io(window.location.origin, {
+    transports: ["websocket", "polling"],
+  }));
 
   /** IDE icon map — returns SVG path content for each known IDE */
   function ideIcon(iconId: string): {
@@ -126,6 +132,34 @@
     }
   }
 
+  async function openLocalIDE(ideType: string, ideName: string) {
+    if (!workspaceStore.active) return;
+    if (isOpeningLocalIDE) return;
+
+    isOpeningLocalIDE = true;
+    const workspacePath = workspaceStore.active.path;
+
+    try {
+      const response = await ideService.openLocalIDE(ideType, workspacePath);
+
+      if (response.success) {
+        uiStore.showToast(`Opening ${ideName} on local host...`, "success");
+      } else {
+        const errorMsg = response.error || response.message || "Unknown error";
+        uiStore.showToast(`Failed to open ${ideName}: ${errorMsg}`, "error");
+      }
+    } catch (err: any) {
+      const errorMsg = err?.message ?? String(err);
+      uiStore.showToast(
+        `Failed to launch ${ideName}: ${errorMsg}`,
+        "error",
+      );
+    } finally {
+      isOpeningLocalIDE = false;
+      isOpen = false;
+    }
+  }
+
   function handleWindowClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (isOpen && !target.closest(".ide-dropdown")) {
@@ -192,6 +226,42 @@
               <span class="ide-name">{ide.name}</span>
               <span class="ide-cmd">{ide.cmd}</span>
             </div>
+          </button>
+        {/each}
+      {/if}
+
+      <!-- Host Agent: Open in Local IDE -->
+      {#if ideStore.list.length > 0}
+        <div class="ide-menu-divider" />
+        <div class="ide-menu-header">Open on Local Host</div>
+        {#each ideStore.list as ide (ide.id)}
+          {@const icon = ideIcon(ide.icon)}
+          <button
+            class="ide-option"
+            class:disabled={isOpeningLocalIDE}
+            disabled={isOpeningLocalIDE}
+            onclick={() => openLocalIDE(ide.id, ide.name)}
+            title="Open in {ide.name} on local machine"
+          >
+            <div class="ide-icon-wrap" style="background: {icon.color}1a;">
+              <svg
+                width="16"
+                height="16"
+                viewBox={icon.viewBox}
+                fill="none"
+                stroke={icon.color}
+                stroke-width="1.5"
+              >
+                <path d={icon.path} />
+              </svg>
+            </div>
+            <div class="ide-info">
+              <span class="ide-name">{ide.name}</span>
+              <span class="ide-cmd">Local Host</span>
+            </div>
+            {#if isOpeningLocalIDE}
+              <div class="ide-spinner" />
+            {/if}
           </button>
         {/each}
       {/if}
