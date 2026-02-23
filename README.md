@@ -1,8 +1,8 @@
 # ⚡ Zeus
 
-**The desktop app built for Claude Code power users.**
+**The high-performance web terminal built for Claude Code power users.**
 
-Zeus wraps Claude Code in a purpose-built interface — a dedicated input bar, workspace switching, skill management, docs preview, and IDE integration — all in one window. Stop juggling terminals and config files. Just open Zeus and code.
+Zeus provides a purpose-built interface for Claude Code — featuring a dedicated input bar, workspace management, skill discovery, MCP panel, and integrated IDE — all in one unified environment. Stop juggling terminals and config files. Just open Zeus and code.
 
 ![Zeus Interface](assets/zeus-main.png)
 
@@ -12,147 +12,87 @@ Zeus wraps Claude Code in a purpose-built interface — a dedicated input bar, w
 
 | Pain point                                                 | Zeus solution                                                                               |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Typing in a raw terminal feels clunky for AI conversations | **Dedicated input bar** with history, Ctrl+C, multi-line — separate from the output display |
-| Switching repos means `cd`-ing around                      | **Sidebar workspace manager** — click to switch, drag to reorder, right-click for actions   |
-| Managing `.claude/` skills and MCP servers by hand         | **Visual Skills & MCP panels** — toggle permissions, add servers, preview command files     |
-| Reading project docs means leaving the terminal            | **Docs browser + viewer tabs** — browse markdown by folder, open as full-width tabs         |
-| No easy way to open the repo in your IDE                   | **One-click IDE launch** — VS Code, Cursor, Zed, Windsurf, IntelliJ, and more               |
-| Keeping Claude Code up to date                             | **Built-in updater** — check and update without leaving the app                             |
+| Typing in a raw terminal feels clunky for AI conversations | **Dedicated input bar** with history, multi-line support, and interrupt controls.           |
+| Switching repos means constant `cd`-ing                    | **Sidebar workspace manager** — click to switch contexts instantly.                         |
+| Managing `.claude/` skills and MCP servers is tedious      | **Visual Panels** — toggle permissions, add servers, and preview command files.             |
+| Reading project docs means leaving the terminal            | **Integrated Docs Browser** — browse and read markdown files as full-width tabs.            |
+| Parallel agent activity is hard to track                   | **Subagent Watcher** — real-time tracking of parallel agent tasks via `.trekker/`.          |
+| No easy way to open the repo in your IDE                   | **One-click IDE launch** — Integrated with VS Code, Cursor, and a built-in `code-server`.   |
 
 ---
 
-## Features Showcase
+## Key Features
 
-### Comprehensive Workspace Management
+### 📂 Workspace Management
+Organize your projects with a dedicated sidebar. Switch contexts instantly without losing your terminal history or Claude session state. Zeus remembers your workspaces and their order.
 
-Organize your projects with a dedicated sidebar. Switch contexts instantly without losing your terminal history or Claude session state.
-
-### Integrated Tooling Panel
-
+### 🛠️ Integrated Tooling Panel
 Access your Skills, MCP servers, and Documentation in a unified right panel.
+- **Skills**: Manage and preview your available Claude skills (global and project-scoped).
+- **MCP**: Configure, monitor, and install Model Context Protocol servers.
+- **Docs**: Browse and read project documentation with high-quality rendering.
 
-![Right Panel](assets/right-panel.png)
+### 🤖 Subagent Tracking
+Real-time visibility into parallel agent activity. See what your subagents are doing, their status, and tool usage as it happens.
 
-- **Skills**: Manage and preview your available Claude skills.
-- **MCP**: Configure and monitor Model Context Protocol servers.
-- **Docs**: Browse and read project documentation without leaving the app.
+### 🎨 Premium Experience
+- **Svelte 5 + WebGL**: GPU-accelerated terminal rendering (via xterm.js) and a reactive, zero-VDB UI.
+- **Themes**: Default Claude Code dark mode, warm Anthropic light theme, and refined dark themes.
+- **Bi-directional RPC**: Seamless communication via Socket.IO for low-latency terminal and chat streaming.
 
-### Customizable Experience
+---
 
-Tailor Zeus to your preference with built-in themes including the default Claude Code dark mode, a warm Anthropic light theme, and a refined dark theme.
+## Architecture
 
-![Settings Modal](assets/settings.png)
+Zeus is built as a Server-Client application:
+- **Backend (Node.js/Express/Socket.IO)**: Manages PTY sessions, file I/O, Git operations, and Claude CLI interactions.
+- **Frontend (Svelte 5/Vite)**: A high-performance web interface that communicates with the backend via bi-directional Socket.IO events.
 
 ---
 
 ## Getting Started
 
-### Local Development
-
-#### Install
-
-```bash
-git clone <repo-url> && cd zeus
-npm install
-cd server && npm install && cd ..
-```
-
-#### Run in development
-
-```bash
-npm run dev
-```
-
-This starts Vite (port 5173) and Express (port 3000) concurrently.
-
-#### Build for production (Desktop App)
-
-```bash
-npm run dist:mac     # macOS (.dmg + .zip)
-npm run dist:win     # Windows (NSIS installer)
-npm run dist:linux   # Linux (AppImage)
-```
-
-#### Requirements
-
-- **Node.js** 18+
-- **Claude Code** — `npm install -g @anthropic-ai/claude-code`
-
-### Docker Deployment
-
-The project includes a unified Docker container that bundles Zeus backend, code-server IDE, and Claude Code CLI.
-
-#### Build and Run
+### 🐳 Docker Deployment (Recommended)
+The unified Docker container bundles the Zeus backend, the built frontend, the Claude Code CLI, and `code-server` (VS Code in the browser).
 
 ```bash
 docker compose up --build
 ```
 
-This builds and starts the `app` service, making Zeus available at:
-- **Zeus**: http://localhost:3000 (Express backend + Svelte frontend)
-- **code-server IDE**: http://localhost:8081 (VS Code in browser)
+Access clinical endpoints:
+- **Zeus Web Terminal**: [http://localhost:3000](http://localhost:3000)
+- **code-server IDE**: [http://localhost:8081](http://localhost:8081)
 
-#### Container Configuration
+**Configuration:**
+- **Workspaces**: Mounted from `./workspaces` on the host to `/home/coder/workspaces`.
+- **Persistence**: Zeus state is saved in the `zeus-data` volume.
+- **User**: Runs as a non-root `coder` user (UID 1000).
 
-The unified `app` service runs as the non-root `coder` user (UID 1000) with:
+### 🛠️ Local Development
 
-| Component | Port | Description |
-|-----------|------|-------------|
-| Zeus API | 3000 | Express + Socket.IO backend |
-| code-server | 8080 | VS Code IDE (exposed as 8081 on host) |
-| Workspace Volume | `/home/coder/workspaces` | Mounted from `./workspaces` on host |
+#### 1. Install Dependencies
+```bash
+# Install root (client) dependencies
+npm install
 
-#### Entrypoint
+# Install server dependencies
+cd server && npm install && cd ..
+```
 
-The container runs `/entrypoint.sh`, which handles:
-- Starting the Claude CLI with `--serve-mcp` if available
-- Launching the Express backend for Zeus
-- Managing code-server access
+#### 2. Run in Development Mode
+```bash
+npm run dev
+```
+This starts Vite (frontend) and Express (backend) concurrently. Vite handles HMR and proxies Socket.IO connections to the backend.
 
----
+#### 3. Production Build & Start
+```bash
+# Build the Svelte frontend
+npm run build
 
-## How to Use
-
-### 1. Add a workspace
-
-Click the **+** button in the sidebar or use the welcome screen. Select any project directory. Zeus remembers your workspaces and their order.
-
-### 2. Launch Claude Code
-
-Click **Claude Code** in the toolbar (or `Cmd+Shift+C`). Zeus opens a new Claude tab, starts the shell, and launches `claude` automatically. Type your prompts in the **input bar** at the bottom — output streams above.
-
-### 3. Run terminal commands
-
-Click **Terminal** in the toolbar (or `Cmd+T`). The same input bar / output display pattern applies. Enter sends the command; `Shift+Enter` for multi-line; `↑↓` for history; `Ctrl+C` to interrupt.
-
-### 4. Switch workspaces
-
-Click any workspace in the sidebar. Drag the **⠿** handle to reorder. Right-click for quick actions: open terminal, run Claude, reveal in Finder, or remove.
-
-### 5. Open in your IDE
-
-Click the **folder icon** in the toolbar. Zeus detects installed IDEs (VS Code, Cursor, Zed, Windsurf, IntelliJ, etc.) and opens the current workspace in your choice.
-
-### 6. Browse docs
-
-Open the right panel (`Cmd+I`) and select the **Docs** tab. Markdown files are listed by folder with highlighted paths. Click a file to open it as a **full-width tab** in the main area — rendered with proper headings, code blocks, tables, and syntax highlighting.
-
-### 7. Manage skills
-
-In the right panel **Skills** tab, you can:
-
-- **Toggle built-in tools** (Bash, Read, Write, Edit, Grep, etc.) per scope (global / project)
-- **See custom slash commands** from `~/.claude/commands/` and any `.claude/commands/` in your project or its subfolders
-- **Preview command files** — click any custom command to see its markdown content and copy the `/user:name` or `/project:name` slug
-
-### 8. Configure MCP servers
-
-In the right panel **MCP** tab:
-
-- View all configured MCP servers and their status
-- Add new servers with command, args, and environment variables
-- Install npm packages for MCP servers directly from the UI
-- Remove or edit existing server configs
+# Start the Express server
+npm run start
+```
 
 ---
 
@@ -170,24 +110,15 @@ In the right panel **MCP** tab:
 | `Shift+Enter`      | New line in input                        |
 | `↑` / `↓`          | Navigate command history                 |
 | `Ctrl+C`           | Send interrupt (SIGINT)                  |
-| `Ctrl+D`           | Send EOF                                 |
-| `Tab`              | Send tab character                       |
+| `Ctrl+D`           | Send EOF / Close session                 |
 | `Middle-click tab` | Close tab                                |
-| `Scroll on tabs`   | Horizontal scroll                        |
 
 ---
 
-## Design Choices
-
-- **Input bar + output display** — Claude Code conversations and terminal commands both use a dedicated input bar at the bottom. The terminal area above is a read-only output display. This separates what you type from what you see, making AI interactions feel conversational rather than terminal-native.
-
-- **Catppuccin Mocha theme** — The most popular developer color scheme, with excellent contrast and readability for both code and natural language output.
-
-- **D2Coding + Pretendard fonts** — Optimized for developers who work in English and Korean. D2Coding (with ligatures) for monospace; Pretendard for UI text.
-
-- **Login shell** — Terminals spawn as login shells (`--login`) so your `.zshrc`, aliases, `PATH`, and color settings all work out of the box.
-
-- **Svelte 5 + WebGL** — Compiled UI with zero virtual DOM overhead. GPU-accelerated terminal rendering. The app stays fast with dozens of tabs open.
+## Design Credits
+- **Colors**: Refined palettes optimized for developer focus.
+- **Typography**: D2Coding for monospace (monospaced with ligatures); Pretendard for UI text.
+- **Engine**: Powered by `node-pty` for authentic terminal behavior.
 
 ---
 
