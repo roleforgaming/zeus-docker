@@ -3,15 +3,12 @@
   import { uiStore } from '../stores/ui.svelte.js'
   // import { ideStore } from '../stores/ide.svelte.js' // Replaced with client-side URL generation
 
-  // Determine if running locally or remotely
-  const isLocal = $derived(
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  )
-
-  // Generate code-server URL based on environment
-  const codeServerUrl = $derived(
-    isLocal ? 'http://localhost:8081' : `${window.location.origin}/code`
-  )
+  // Dynamically determine code-server base URL based on hostname
+  // Production: redirect to subdomain (https://code.intothesavvyverse.us)
+  // Development: use localhost (http://localhost:8081)
+  $: codeServerBase = window.location.hostname.includes('intothesavvyverse.us')
+    ? 'https://code.intothesavvyverse.us'
+    : 'http://localhost:8081'
 
   function openCodeServer() {
     if (!workspaceStore.active) {
@@ -20,8 +17,8 @@
     }
 
     const wsPath = workspaceStore.active.path
-    const folder = encodeURIComponent(wsPath)
-    const targetUrl = `${codeServerUrl}?folder=${folder}`
+    const encodedPath = encodeURIComponent(wsPath)
+    const targetUrl = `${codeServerBase}/${encodedPath}`
 
     try {
       window.open(targetUrl, '_blank')
@@ -51,11 +48,7 @@
           🚀 Open Workspace in code-server
         </button>
         <p class="info-text">
-          {#if isLocal}
-            Opening <code>localhost:8081</code>
-          {:else}
-            Opening <code>{window.location.origin}/code</code>
-          {/if}
+          Opening <code>{codeServerBase}</code>
         </p>
       </div>
     </div>

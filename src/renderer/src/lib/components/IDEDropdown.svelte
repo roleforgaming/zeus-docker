@@ -3,28 +3,21 @@
   import { uiStore } from "../stores/ui.svelte.js";
 
   function openCodeServer() {
-    // 1. Determine hostname
-    const hostname = window.location.hostname;
-    const isLocal =
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname === '::1';
+    // Dynamically determine code-server base URL based on hostname
+    // Production: redirect to subdomain (https://code.intothesavvyverse.us)
+    // Development: use localhost (http://localhost:8081)
+    const codeServerBase = window.location.hostname.includes('intothesavvyverse.us')
+      ? 'https://code.intothesavvyverse.us'
+      : 'http://localhost:8081';
 
-    // 2. Construct URL
-    // If Local: use fixed port 8081
-    // If Proxy: use current origin + /code
-    const baseUrl = isLocal
-      ? 'http://localhost:8081'
-      : `${window.location.origin}/code`;
-
-    // 3. Append workspace folder parameter if available
-    let url = baseUrl;
+    // Construct URL with optional workspace path
+    let url = codeServerBase;
     if (workspaceStore.active) {
-      const folder = encodeURIComponent(workspaceStore.active.path);
-      url = `${baseUrl}?folder=${folder}`;
+      const encodedPath = encodeURIComponent(workspaceStore.active.path);
+      url = `${codeServerBase}/${encodedPath}`;
     }
 
-    // 4. Open in new tab
+    // Open in new tab
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 </script>
