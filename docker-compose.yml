@@ -13,6 +13,7 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - PASSWORD=savvydev
+      - HOST_AGENT_URL=http://host.docker.internal:3001
     entrypoint: [ "/entrypoint.sh" ]
     restart: unless-stopped
 

@@ -64,6 +64,7 @@ import {
   stopSubagentWatch,
 } from "./subagent-watcher.js";
 import { getIDEs, openIDE } from "./ide.js";
+import openLocalIDEService from "./open-local-ide.js";
 import {
   getWorkspacePath,
   getProjectName,
@@ -119,7 +120,7 @@ app.get("/api/debug/workspace-paths/:projectName", (req, res) => {
 initStore();
 
 // Placeholder emit — replaced per connection
-let _socketEmit = (_event, _data) => { };
+let _socketEmit = (_event, _data) => {};
 initClaudeSession(pty, (event, data) => _socketEmit(event, data));
 initSubagentWatcher((event, data) => _socketEmit(event, data));
 
@@ -302,6 +303,47 @@ io.on("connection", (socket) => {
     cb(true);
   });
 
+  // ── Open Local IDE ─────────────────────────────────────────────────────────
+
+  socket.on("open-local-ide", async ({ ideType, workspacePath }) => {
+    try {
+      console.log("[zeus:ide] open-local-ide request:", {
+        ideType,
+        workspacePath,
+      });
+
+      // Get the session for this socket connection
+      const sessionId = socket.handshake.auth?.sessionId;
+      const session = sessionId ? getSession(sessionId) : null;
+
+      // Call the open-local-ide service
+      const response = await openLocalIDEService(
+        session,
+        ideType,
+        workspacePath,
+      );
+
+      // Always emit a response with the IDE type in the event name
+      socket.emit(`open-local-ide-response-${ideType}`, response);
+
+      console.log("[zeus:ide] open-local-ide response:", {
+        ideType,
+        success: response.success,
+        error: response.error,
+      });
+    } catch (err) {
+      console.error("[zeus:ide] open-local-ide error:", err);
+
+      // Emit error response even on exception
+      const ideType = arguments[0]?.ideType || "unknown";
+      socket.emit(`open-local-ide-response-${ideType}`, {
+        success: false,
+        message: "Failed to launch IDE",
+        error: err.message,
+      });
+    }
+  });
+
   // ── System ─────────────────────────────────────────────────────────────────
 
   socket.on("system:open-external", (url, cb) => {
@@ -316,7 +358,7 @@ io.on("connection", (socket) => {
         detached: true,
         stdio: "ignore",
       });
-      child.on('error', () => { });
+      child.on("error", () => {});
       child.unref();
     } catch {
       /* best-effort */
@@ -337,7 +379,7 @@ io.on("connection", (socket) => {
         detached: true,
         stdio: "ignore",
       });
-      child.on('error', () => { });
+      child.on("error", () => {});
       child.unref();
     } catch {
       /* best-effort */
