@@ -169,7 +169,7 @@
 
   // Filter IDEs: browser-based for "Open in IDE", local for "Open on Local Host"
   const browserIDEs = $derived(ideStore.list.filter(ide => ide.type === 'browser'));
-  const localIDEs = $derived(ideStore.list.filter(ide => ide.type === 'local' || !ide.type));
+  const localIDEs = $derived(ideStore.list.filter(ide => ide.type === 'local'));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -234,7 +234,7 @@
 
       {#if localIDEs.length > 0}
         {#if browserIDEs.length > 0}
-          <div class="ide-menu-divider" />
+          <div class="ide-menu-divider"></div>
         {/if}
         <div class="ide-menu-header">Open on Local Host</div>
         {#each localIDEs as ide (ide.id)}
@@ -243,7 +243,7 @@
             class="ide-option"
             class:disabled={isOpeningLocalIDE}
             disabled={isOpeningLocalIDE}
-            onclick={() => openLocalIDE(ide.id, ide.name)}
+            onclick={() => openLocalIDE(ide.cmd, ide.name)}
             title="Open in {ide.name} on local machine"
           >
             <div class="ide-icon-wrap" style="background: {icon.color}1a;">
@@ -263,7 +263,7 @@
               <span class="ide-cmd">Local Host</span>
             </div>
             {#if isOpeningLocalIDE}
-              <div class="ide-spinner" />
+              <div class="ide-spinner"></div>
             {/if}
           </button>
         {/each}
