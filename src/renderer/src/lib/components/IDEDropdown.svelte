@@ -143,7 +143,14 @@
       const response = await ideService.openLocalIDE(ideType, workspacePath);
 
       if (response.success) {
-        uiStore.showToast(`Opening ${ideName} on local host...`, "success");
+        // If a URL is returned (e.g., for code-server), open it in a new tab
+        if (response.url) {
+          window.open(response.url, "_blank", "noopener,noreferrer");
+          uiStore.showToast(`Opening ${ideName}...`, "success");
+        } else {
+          // For IDEs that launch without a URL, just show success message
+          uiStore.showToast(`Opening ${ideName} on local host...`, "success");
+        }
       } else {
         const errorMsg = response.error || response.message || "Unknown error";
         uiStore.showToast(`Failed to open ${ideName}: ${errorMsg}`, "error");

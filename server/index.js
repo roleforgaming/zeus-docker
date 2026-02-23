@@ -312,9 +312,12 @@ io.on("connection", (socket) => {
         workspacePath,
       });
 
-      // Get the session for this socket connection
-      const sessionId = socket.handshake.auth?.sessionId;
-      const session = sessionId ? getSession(sessionId) : null;
+      // For local IDE launch, we don't need a Claude session.
+      // Create a minimal session object for the Host Agent service.
+      const session = {
+        sessionId: socket.id,
+        bearerToken: `socket-${socket.id}`,
+      };
 
       // Call the open-local-ide service
       const response = await openLocalIDEService(
