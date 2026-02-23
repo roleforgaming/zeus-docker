@@ -4,19 +4,16 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-      - "8081:8080"
+      - "3001:3000" # host 3001 -> container 3000 (Zeus)
+      - "8081:8080" # host 8081 -> container 8080 (code-server)
     volumes:
       - /mnt/d/docker/zeus/workspaces:/home/coder/workspaces
       - /mnt/d/docker/zeus/zeus-data:/home/coder/.zeus
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - ZEUS_PORT=3000
       - PASSWORD=savvydev
       - HOST_AGENT_URL=http://host.docker.internal:3001
+      - CODESERVER_PORT=8080
     entrypoint: [ "/entrypoint.sh" ]
     restart: unless-stopped
-
-volumes:
-  workspaces:
-  zeus-data:
