@@ -217,6 +217,7 @@ class UIStore {
     } catch { /* ignore */ }
   }
 
+  /** Fetch runtime config from the server and populate codeServerUrl. Called once on app init. */
   async loadConfig(): Promise<void> {
     try {
       const res = await fetch('/config')
