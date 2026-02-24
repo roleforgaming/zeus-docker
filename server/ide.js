@@ -106,7 +106,7 @@ function resolveWorkspacePath(workspacePath) {
  */
 function generateCodeServerUrl(workspacePath) {
   // Port 8081 is the public-facing port from docker-compose.yml
-  const baseUrl = "http://localhost:8081";
+  const baseUrl = process.env.CODE_SERVER_URL || "http://localhost:8081";
   return `${baseUrl}/?folder=${encodeURIComponent(workspacePath)}`;
 }
 
