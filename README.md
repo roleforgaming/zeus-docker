@@ -241,6 +241,7 @@ Planned features and improvements for ZeusDock:
 
 - **File Reveal**: Currently there is a leftover from Zeus, the "Reveal in Finder" folder button. It is nonfunctional and I am not certain I am going to implement it.
 - **Notes/Planner**: A non-workspace view for tracking running ideas, quick notes, and things you'd like to do
+- **Workspace Templates**: Capture a configured workspace (with skills, MCPs, boilerplate files, and directory structure) and reuse it to create new workspaces quickly. This addresses the pain point of repeatedly setting up project-scoped Claude Code configurations for different project types.
 
 ---
 
