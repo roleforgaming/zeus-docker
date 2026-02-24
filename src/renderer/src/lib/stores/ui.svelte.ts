@@ -18,9 +18,9 @@ export interface ThemeOption {
 }
 
 export const THEMES: ThemeOption[] = [
-  { id: 'claude-code', label: 'Claude Code', desc: 'Dark terminal',  fontHint: 'Pretendard · Code: D2Coding' },
-  { id: 'anthropic',   label: 'Anthropic',   desc: 'Warm light',     fontHint: 'Inter · Code: D2Coding' },
-  { id: 'claude-dark', label: 'Claude Dark',  desc: 'Refined dark',  fontHint: 'Inter · Code: D2Coding' },
+  { id: 'claude-code', label: 'Claude Code', desc: 'Dark terminal', fontHint: 'Pretendard · Code: D2Coding' },
+  { id: 'anthropic', label: 'Anthropic', desc: 'Warm light', fontHint: 'Inter · Code: D2Coding' },
+  { id: 'claude-dark', label: 'Claude Dark', desc: 'Refined dark', fontHint: 'Inter · Code: D2Coding' },
 ]
 
 export interface ModelOption {
@@ -34,8 +34,8 @@ export interface ModelOption {
 /** Model descriptions keyed by alias */
 const MODEL_DESC: Record<string, { desc: string; group: string }> = {
   sonnet: { desc: 'Fast & balanced', group: 'Sonnet' },
-  opus:   { desc: 'Most capable', group: 'Opus' },
-  haiku:  { desc: 'Fastest & lightest', group: 'Haiku' },
+  opus: { desc: 'Most capable', group: 'Opus' },
+  haiku: { desc: 'Fastest & lightest', group: 'Haiku' },
 }
 
 /** Static fallback if dynamic fetch fails */
@@ -84,6 +84,18 @@ async function loadModelsFromClaudeCode(): Promise<void> {
   } catch { /* keep fallback */ }
 }
 
+const THEME_IDS: ThemeId[] = ['claude-code', 'anthropic', 'claude-dark'];
+
+function loadThemeFromStorage(): ThemeId {
+  if (typeof localStorage === 'undefined') return 'claude-code';
+
+  const stored = localStorage.getItem('zeus-theme');
+  if (!stored) return 'claude-code';
+
+  return THEME_IDS.includes(stored as ThemeId) ? (stored as ThemeId) : 'claude-code';
+}
+
+
 class UIStore {
   sidebarCollapsed = $state(false)
   rightPanelOpen = $state(false)
@@ -99,9 +111,7 @@ class UIStore {
   activeView = $state<ActiveViewType>('terminal')
 
   /** Active color theme */
-  theme = $state<ThemeId>(
-    (typeof localStorage !== 'undefined' && localStorage.getItem('zeus-theme') as ThemeId) || 'claude-code'
-  )
+  theme = $state<ThemeId>(loadThemeFromStorage())
 
   /** Selected Claude model alias — synced from Claude settings on startup */
   selectedModel = $state<string>('sonnet')
