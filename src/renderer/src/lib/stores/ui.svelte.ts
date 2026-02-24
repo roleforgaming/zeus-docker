@@ -92,6 +92,7 @@ class UIStore {
   updateModalOpen = $state(false)
   settingsOpen = $state(false)
   toasts = $state<Toast[]>([])
+  codeServerUrl = $state('http://localhost:8081')
   termSize = $state('')
 
   /** Which kind of tab is showing in the main content area */
@@ -214,6 +215,19 @@ class UIStore {
       config.model = modelId
       await window.zeus.claudeConfig.write(config)
     } catch { /* ignore */ }
+  }
+
+  async loadConfig(): Promise<void> {
+    try {
+      const res = await fetch('/config')
+      if (!res.ok) return
+      const data: { codeServerUrl?: string } = await res.json()
+      if (data.codeServerUrl) {
+        this.codeServerUrl = data.codeServerUrl
+      }
+    } catch {
+      // Keep default — server unreachable (e.g., pure dev without backend)
+    }
   }
 }
 
