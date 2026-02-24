@@ -201,6 +201,42 @@ This fork preserves the original development workflow — only Docker configurat
 
 ## Roadmap / To-Do
 
+## Security & Hardening
+
+ZeusDock is designed primarily for personal and homelab use, but it can be exposed securely via Cloudflare Tunnel + Access. Before treating it as a long‑running, Internet‑reachable service, keep these points in mind:
+
+- **What’s already hardened**
+  - Host-agent bearer token:
+    - In production, ZeusDock requires `HOST_AGENT_TOKEN` and fails fast if it’s missing.
+    - Token comparison uses a constant‑time check (`crypto.timingSafeEqual`) to reduce timing side‑channel risk.
+  - Workspace path confinement:
+    - IDE launches are restricted to paths under a configured project root using `fs.realpathSync` and “is inside root” checks.
+    - `shell: true` has been removed from IDE spawning, and the workspace path is re‑validated immediately before `spawn`, reducing TOCTOU window.
+  - Frontend safety:
+    - Themes are loaded from `localStorage` but validated against the known theme IDs before use, falling back to a safe default when invalid.
+
+- **Socket.IO authentication (planned)**
+  - Current state: The ZeusDock web UI connects to the backend Socket.IO endpoint without its own auth layer; access is gated by same‑origin and your Cloudflare / reverse proxy setup.
+  - Risk: Any script running in the browser origin (including potential XSS or a compromised extension) can open a Socket.IO connection and perform privileged actions (terminal control, file I/O, Claude sessions).
+  - Plan:
+    - Add a token-based auth layer to the Socket.IO handshake (e.g., `io(origin, { auth: { token } })`).
+    - Validate this token server‑side and disconnect unauthorized clients.
+    - Keep Socket.IO behind Cloudflare Access / reverse proxy; do not expose it as a public, multi‑tenant service until auth is implemented.
+
+- **External link handling (planned)**
+  - Current state: `system.openExternal` opens URLs in a new tab.
+  - Plan:
+    - Validate outbound URLs (protocol allowlist: `http` / `https`) before calling `window.open`, and optionally show a confirmation dialog for external links.
+
+- **Deployment assumptions**
+  - ZeusDock assumes:
+    - It is fronted by Cloudflare Tunnel / Access or an equivalent reverse proxy with TLS and authentication.
+    - It is not a public, multi‑tenant SaaS; it is a personal or team tool with trusted users.
+  - Recommended:
+    - Document your chosen deployment pattern (Cloudflare Access, reverse proxy, SSH tunnels) for your environment.
+    - Avoid exposing raw container ports (3000, 8081) directly to the Internet; always front them with Cloudflare / a reverse proxy.
+
+
 Planned features and improvements for ZeusDock:
 
 - **File Reveal**: Currently there is a leftover from Zeus, the "Reveal in Finder" folder button. It is nonfunctional and I am not certain I am going to implement it.
