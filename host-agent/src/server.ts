@@ -39,7 +39,7 @@ app.use(authMiddleware);
  * GET /health
  * Check if the Host Agent is running.
  */
-app.get("/health", (req: Request, res: Response) => {
+app.get("/health", requireAuth, (req: AuthRequest, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -138,7 +138,7 @@ app.use(
 
     res.status(500).json({
       success: false,
-      error: NODE_ENV === "production" ? "Internal server error" : err.message,
+      error: "Internal server error",
     } as APIResponse);
   },
 );
@@ -164,6 +164,11 @@ export function startServer(): void {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
+
+// Enforce token in production
+if (NODE_ENV === "production" && !process.env.HOST_AGENT_TOKEN) {
+  throw new Error("[host-agent] HOST_AGENT_TOKEN must be set in production");
+}
 
 // Start server if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
