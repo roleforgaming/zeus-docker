@@ -125,6 +125,8 @@ CODE_SERVER_URL=https://code.yourdomain.com
 
 #### 4. Prerequisites for Remote Access
 
+Note: Socket.IO currently relies on same-origin and Cloudflare Access; it does not enforce its own token auth yet. Do not treat it as a hardened multi‑tenant service.
+
 Before exposing ZeusDock to the internet, set up secure authentication:
 
 **Recommended: Cloudflare Zero Trust + OAuth**
