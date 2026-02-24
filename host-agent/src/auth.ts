@@ -19,8 +19,14 @@ export function getAuthToken(): string | null {
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+interface LaunchRequestBody {
+  ideType?: string;
+  workspacePath?: string;
+}
+
 export interface AuthRequest extends Request {
   authenticated?: boolean;
+  body: LaunchRequestBody;
 }
 
 export interface AuthError {
