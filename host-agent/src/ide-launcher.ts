@@ -107,23 +107,33 @@ export function resolveWorkspacePath(
   workspacePath: string,
   projectRoot?: string,
 ): string | null {
-  if (!workspacePath) {
+  if (!workspacePath) return null;
+
+  let candidate: string;
+
+  if (projectRoot) {
+    candidate = path.join(projectRoot, workspacePath);
+  } else {
+    candidate = workspacePath;
+  }
+
+  if (!path.isAbsolute(candidate) || !fs.existsSync(candidate)) {
     return null;
   }
 
-  // If projectRoot is provided, construct the path as projectRoot/workspacePath
+  // Canonicalize and enforce that it stays under projectRoot if provided
+  const real = fs.realpathSync(candidate);
+
   if (projectRoot) {
-    const resolvedPath = path.join(projectRoot, workspacePath);
-    return fs.existsSync(resolvedPath) ? resolvedPath : null;
+    const realRoot = fs.realpathSync(projectRoot);
+    if (!real.startsWith(realRoot + path.sep)) {
+      return null;
+    }
   }
 
-  // Otherwise use the workspace path as-is if it exists
-  if (path.isAbsolute(workspacePath) && fs.existsSync(workspacePath)) {
-    return workspacePath;
-  }
-
-  return null;
+  return real;
 }
+
 
 /**
  * Spawn an IDE process for the given workspace path.
@@ -138,17 +148,24 @@ export function spawnIDEProcess(
   workspacePath: string,
 ): IDELaunchResult {
   try {
-    const child = spawn(ideCommand, [workspacePath], {
+    // Re-resolve and re-validate just before spawning
+    const projectRoot = process.env.ZEUS_HOST_PROJECT_ROOT;
+    const finalPath = resolveWorkspacePath(workspacePath, projectRoot);
+    if (!finalPath) {
+      return {
+        success: false,
+        error: "Workspace path became invalid before launch",
+      };
+    }
+
+    const child = spawn(ideCommand, [finalPath], {
       detached: true,
       stdio: "ignore",
-      shell: true,
-      // Inherit environment from parent process
+      shell: false,
       env: process.env,
     });
 
-    // Unref so the parent process can exit without waiting for the IDE
     child.unref();
-
     return { success: true };
   } catch (err) {
     const errorMessage =
@@ -159,6 +176,7 @@ export function spawnIDEProcess(
     };
   }
 }
+
 
 // ── Main Launch Function ───────────────────────────────────────────────────
 
