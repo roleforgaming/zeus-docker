@@ -132,6 +132,7 @@ app.use((req: Request, res: Response) => {
  * Global error handler.
  */
 app.use(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   (err: Error, req: Request, res: Response, _next: express.NextFunction) => {
     console.error("[server] Unhandled error:", err);
 

@@ -59,7 +59,8 @@ zeus-data/
 .DS_Store
 Thumbs.db
 
-###############################################################################
 # Project-Specific Ad-hoc files
 ###############################################################################
 ide-dropdown-fixed.png
+eslint*.json
+docs/review/
