@@ -38,6 +38,11 @@ yarn-error.log*
 .trekker/
 .claude/
 .playwright-mcp/
+.agent/
+.agents/
+.cline/
+.qwen/
+.windsurf/
 
 ###############################################################################
 # Data and Workspaces (Persistent storage)
