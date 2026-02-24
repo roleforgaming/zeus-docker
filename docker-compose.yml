@@ -15,5 +15,9 @@ services:
       - PASSWORD=savvydev
       - HOST_AGENT_URL=http://host.docker.internal:3001
       - CODESERVER_PORT=8080
+      # URL where code-server IDE is publicly accessible.
+      # Set this to your domain if using a reverse proxy or tunnel
+      # (e.g., https://code.yourdomain.com). Defaults to http://localhost:8081.
+      - CODE_SERVER_URL=${CODE_SERVER_URL:-http://localhost:8081}
     entrypoint: [ "/entrypoint.sh" ]
     restart: unless-stopped
