@@ -86,6 +86,16 @@ const io = new Server(httpServer, {
   maxHttpBufferSize: 1e7, // 10 MB — allow large terminal data bursts
 });
 
+// ── Runtime Config ─────────────────────────────────────────────────────────────
+
+// Exposes server-side environment variables to the statically-built frontend.
+// Self-hosters set CODE_SERVER_URL in docker-compose.yml to configure their domain.
+app.get("/config", (_req, res) => {
+  res.json({
+    codeServerUrl: process.env.CODE_SERVER_URL || "http://localhost:8081",
+  });
+});
+
 // ── Static Files ──────────────────────────────────────────────────────────────
 
 const staticDir = path.join(__dirname, "../dist/renderer");
