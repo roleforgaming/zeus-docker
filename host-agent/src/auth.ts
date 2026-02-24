@@ -6,6 +6,7 @@
  */
 
 import { Request, Response, NextFunction } from "express";
+import crypto from "node:crypto";
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
@@ -66,18 +67,28 @@ export function extractBearerToken(authHeader?: string): string | null {
 export function validateToken(providedToken: string | null): boolean {
   const configuredToken = getAuthToken();
 
-  // If no token is configured, authentication is disabled
-  if (!configuredToken) {
-    return true;
+  if (process.env.NODE_ENV === "production") {
+    if (!configuredToken || !providedToken) return false;
+
+    const a = Buffer.from(configuredToken);
+    const b = Buffer.from(providedToken);
+
+    if (a.length !== b.length) {
+      // Compare with a dummy buffer of same length to keep timing consistent
+      const dummy = Buffer.alloc(a.length);
+      crypto.timingSafeEqual(a, dummy);
+      return false;
+    }
+
+    return crypto.timingSafeEqual(a, b);
   }
 
-  // If token is configured, provided token must match exactly
-  if (!providedToken) {
-    return false;
-  }
-
+  // Dev behavior unchanged
+  if (!configuredToken) return true;
+  if (!providedToken) return false;
   return providedToken === configuredToken;
 }
+
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 
