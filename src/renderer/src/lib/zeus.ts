@@ -9,6 +9,19 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 
 // ── Socket ────────────────────────────────────────────────────────────────────
+// TO-DO: Add Socket.IO auth layer server-side.
+/*
+const socket: Socket = io(window.location.origin, {
+  transports: ["websocket", "polling"],
+  auth: {
+    token: localStorage.getItem("zeus-host-token") || undefined,
+  },
+});
+
+*/
+
+// NOTE: Currently relies on same-origin + deployment boundary (localhost / homelab).
+// Do not expose this Socket.IO endpoint to the public Internet until auth is implemented.
 
 const socket: Socket = io(window.location.origin, {
   transports: ["websocket", "polling"],
@@ -112,7 +125,7 @@ const zeus = {
         });
         xterm.loadAddon(wl);
         addons.push(wl);
-      } catch { 
+      } catch {
         /* empty: WebLinksAddon is optional */
       }
 
@@ -123,8 +136,8 @@ const zeus = {
         webgl.onContextLoss(() => webgl.dispose());
         xterm.loadAddon(webgl);
         addons.push(webgl);
-      } catch { 
-          /* empty: WebglAddon is optional */
+      } catch {
+        /* empty: WebglAddon is optional */
       }
 
       if (container.offsetWidth > 0 || container.offsetHeight > 0) {
@@ -197,14 +210,14 @@ const zeus = {
         for (const addon of local.addons) {
           try {
             addon.dispose();
-          } catch { 
+          } catch {
             /* empty: dispose is optional */
           }
         }
         local.addons.length = 0;
         try {
           local.xterm.dispose();
-        } catch { 
+        } catch {
           /* empty: dispose is optional */
         }
         localTerminals.delete(termId);
@@ -346,7 +359,17 @@ const zeus = {
 
   // ── System ──
   system: {
-    openExternal: (url: string) => Promise.resolve(window.open(url, "_blank") ? true : false),
+    openExternal: (url: string) => {
+      try {
+        const u = new URL(url, window.location.origin);
+        if (!["http:", "https:"].includes(u.protocol)) {
+          return Promise.resolve(false);
+        }
+        return Promise.resolve(window.open(u.toString(), "_blank") ? true : false);
+      } catch {
+        return Promise.resolve(false);
+      }
+    },
     revealInFinder: (p: string) => invoke("system:reveal-in-finder", p),
     getHome: () => invoke<string>("system:get-home"),
     pathExists: (p: string) => invoke<boolean>("system:path-exists", p),
