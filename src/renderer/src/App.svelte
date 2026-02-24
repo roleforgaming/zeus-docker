@@ -18,7 +18,7 @@
   import WelcomeScreen from './lib/components/WelcomeScreen.svelte'
   import StatusBar from './lib/components/StatusBar.svelte'
   import RightPanel from './lib/components/RightPanel.svelte'
-  // IDEModal replaced by IDEDropdown in Toolbar
+  import IDEModal from './lib/components/IDEModal.svelte'
   import UpdateModal from './lib/components/UpdateModal.svelte'
   import ContextMenu from './lib/components/ContextMenu.svelte'
   import Toast from './lib/components/Toast.svelte'
@@ -304,6 +304,7 @@
   <RightPanel />
 </div>
 
+<IDEModal />
 <UpdateModal />
 <ContextMenu onaction={handleContextAction} />
 <SettingsPanel />

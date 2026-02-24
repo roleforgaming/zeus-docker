@@ -3,7 +3,6 @@
   import IconSidebar from './icons/IconSidebar.svelte'
   import IconFolder from './icons/IconFolder.svelte'
   import IconPanelRight from './icons/IconPanelRight.svelte'
-  import IDEDropdown from './IDEDropdown.svelte'
 
   let { onreveal, ontogglePanel }: {
     onreveal: () => void
@@ -19,7 +18,11 @@
   </div>
 
   <div class="toolbar-right">
-    <IDEDropdown />
+    <button class="icon-btn" title="Open in code-server" onclick={() => (uiStore.ideModalOpen = true)}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
+      </svg>
+    </button>
     <button class="icon-btn" title="Reveal in Finder" onclick={onreveal}>
       <IconFolder size={16} />
     </button>

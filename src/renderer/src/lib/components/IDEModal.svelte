@@ -17,8 +17,7 @@
     }
 
     const wsPath = workspaceStore.active.path
-    const encodedPath = encodeURIComponent(wsPath)
-    const targetUrl = `${codeServerBase}/${encodedPath}`
+    const targetUrl = `${codeServerBase}/?folder=${encodeURIComponent(wsPath)}`
 
     try {
       window.open(targetUrl, '_blank')
