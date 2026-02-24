@@ -68,6 +68,13 @@ Access clinical endpoints:
 - **Persistence**: Zeus state is saved in the `zeus-data` volume.
 - **User**: Runs as a non-root `coder` user (UID 1000).
 
+**Environment Variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `CODE_SERVER_URL` | `http://localhost:8081` | Public URL for code-server IDE. Set to your domain when using a reverse proxy or Cloudflare tunnel (e.g., `https://code.yourdomain.com`). |
+| `PASSWORD` | *(required)* | Password to access code-server IDE. |
+
 ### 🛠️ Local Development
 
 #### 1. Install Dependencies
