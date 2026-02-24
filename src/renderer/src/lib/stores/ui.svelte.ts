@@ -48,7 +48,7 @@ const FALLBACK_MODELS: ModelOption[] = [
 ]
 
 /** Reactive model list — populated dynamically from Claude Code */
-export let AVAILABLE_MODELS = $state<ModelOption[]>([...FALLBACK_MODELS])
+export const AVAILABLE_MODELS = $state<ModelOption[]>([...FALLBACK_MODELS])
 
 /** Fetch model aliases from Claude Code and build AVAILABLE_MODELS */
 async function loadModelsFromClaudeCode(): Promise<void> {

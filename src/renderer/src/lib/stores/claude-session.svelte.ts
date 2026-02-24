@@ -11,7 +11,6 @@ import {
   isBackgroundTask,
   looksLikeTaskIdResult,
   looksLikeAgentDispatch,
-  registerKnownAgents,
   resolveAgentColor
 } from '../utils/agent-colors.js'
 
@@ -221,9 +220,9 @@ class ClaudeSessionStore {
       // Abort any streaming conversations
       for (const conv of this.conversations) {
         if (conv.isStreaming) {
-          window.zeus.claudeSession.abort(conv.id).catch(() => {})
+          window.zeus.claudeSession.abort(conv.id).catch(() => { })
         }
-        window.zeus.claudeSession.close(conv.id).catch(() => {})
+        window.zeus.claudeSession.close(conv.id).catch(() => { })
       }
       this.conversations = []
       this.activeId = null
@@ -482,10 +481,10 @@ class ClaudeSessionStore {
     const label = TOOL_LABELS[toolName.toLowerCase()] || toolName
     const detail = input.command ? String(input.command).slice(0, 60)
       : input.file_path ? String(input.file_path)
-      : input.pattern ? String(input.pattern)
-      : input.query ? String(input.query).slice(0, 60)
-      : input.path ? String(input.path)
-      : ''
+        : input.pattern ? String(input.pattern)
+          : input.query ? String(input.query).slice(0, 60)
+            : input.path ? String(input.path)
+              : ''
     return detail ? `${label}: ${detail}` : label
   }
 
@@ -1176,11 +1175,11 @@ class ClaudeSessionStore {
             const toolUseId = typeof tr.tool_use_id === 'string' ? tr.tool_use_id : ''
             const resultContent = typeof tr.content === 'string' ? tr.content
               : Array.isArray(tr.content) ? (tr.content as unknown[]).map((c: unknown) => {
-                  if (typeof c === 'string') return c
-                  if (c && typeof c === 'object' && (c as Record<string, unknown>).type === 'text') return (c as Record<string, unknown>).text ?? ''
-                  return ''
-                }).join('')
-              : ''
+                if (typeof c === 'string') return c
+                if (c && typeof c === 'object' && (c as Record<string, unknown>).type === 'text') return (c as Record<string, unknown>).text ?? ''
+                return ''
+              }).join('')
+                : ''
 
             if (resultContent) {
               conv.streamingBlocks = [...conv.streamingBlocks, { type: 'tool_result', content: String(resultContent) }]

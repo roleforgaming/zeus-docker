@@ -112,7 +112,9 @@ const zeus = {
         });
         xterm.loadAddon(wl);
         addons.push(wl);
-      } catch { }
+      } catch { 
+        /* empty: WebLinksAddon is optional */
+      }
 
       xterm.open(container);
 
@@ -121,7 +123,9 @@ const zeus = {
         webgl.onContextLoss(() => webgl.dispose());
         xterm.loadAddon(webgl);
         addons.push(webgl);
-      } catch { }
+      } catch { 
+          /* empty: WebglAddon is optional */
+      }
 
       if (container.offsetWidth > 0 || container.offsetHeight > 0) {
         fitAddon.fit();
@@ -193,12 +197,16 @@ const zeus = {
         for (const addon of local.addons) {
           try {
             addon.dispose();
-          } catch { }
+          } catch { 
+            /* empty: dispose is optional */
+          }
         }
         local.addons.length = 0;
         try {
           local.xterm.dispose();
-        } catch { }
+        } catch { 
+          /* empty: dispose is optional */
+        }
         localTerminals.delete(termId);
       }
       return invoke("terminal:kill", termId);
