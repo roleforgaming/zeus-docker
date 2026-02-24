@@ -41,7 +41,8 @@
       workspaceStore.load(),
       claudeStore.check(),
       ideStore.load(),
-      uiStore.syncModelFromSettings()
+      uiStore.syncModelFromSettings(),
+      uiStore.loadConfig()
     ])
 
     await workspaceStore.restoreLast()
