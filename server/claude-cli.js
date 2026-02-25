@@ -159,6 +159,7 @@ export function getShellEnv() {
   // In packaged macOS app, PATH is minimal — add common locations
   if (process.platform !== 'win32' && env.PATH) {
     const extras = [
+      `${process.env.HOME}/.npm-global/bin`,
       `${process.env.HOME}/.local/bin`,
       `${process.env.HOME}/.nvm/versions/node/current/bin`,
       '/usr/local/bin',

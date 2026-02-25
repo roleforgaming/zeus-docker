@@ -64,13 +64,17 @@ RUN chown -R coder:coder /home/coder/zeus /entrypoint.sh && \
 # Switch to coder user (non-root)
 USER coder
 
+# Set up local npm prefix to avoid EACCES during global installs inside docker
+ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
+RUN mkdir -p /home/coder/.npm-global
+
 # Update Claude to native installer as the coder user
 RUN claude install
 
 # Set environment variables
 ENV PORT=3000 \
     NODE_ENV=production \
-    PATH="/home/coder/.local/bin:${PATH}"
+    PATH="/home/coder/.npm-global/bin:/home/coder/.local/bin:${PATH}"
 
 # Expose both Zeus backend (3000) and code-server (8080)
 EXPOSE 3000 8080
