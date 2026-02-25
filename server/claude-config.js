@@ -187,8 +187,15 @@ export function runPluginCmd(action, target, scope) {
     child.stderr?.on('data', (d) => (stderr += d.toString()))
     child.on('close', (code) => {
       if (code === 0) resolve({ success: true, output: stdout })
-      else resolve({ success: false, error: stderr || stdout || `Exit code ${code}` })
+      else {
+        const error = stderr || stdout || `Exit code ${code}`
+        console.error(`[zeus] plugin command failed (${args.join(' ')}):`, error)
+        resolve({ success: false, error })
+      }
     })
-    child.on('error', (err) => resolve({ success: false, error: err.message }))
+    child.on('error', (err) => {
+      console.error(`[zeus] plugin command error (${args.join(' ')}):`, err.message)
+      resolve({ success: false, error: err.message })
+    })
   })
 }

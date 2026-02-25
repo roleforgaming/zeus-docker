@@ -88,12 +88,12 @@ class PluginStore {
     }
   }
 
-  async install(name: string, scope: string = 'user'): Promise<boolean> {
+  async install(name: string, scope: string = 'user'): Promise<{ success: boolean; error?: string }> {
     const result = await window.zeus.plugin.install(name, scope)
     if (result.success) {
       await this.load()
     }
-    return result.success
+    return result
   }
 
   async uninstall(name: string): Promise<boolean> {

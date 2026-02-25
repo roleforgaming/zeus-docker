@@ -58,7 +58,8 @@ COPY --from=builder /app/dist/renderer ./dist/renderer
 COPY entrypoint.sh /entrypoint.sh
 
 # Fix ownership and permissions for coder user
-RUN chown -R coder:coder /home/coder/zeus /entrypoint.sh && \
+RUN mkdir -p /home/coder/.npm && \
+    chown -R coder:coder /home/coder/zeus /entrypoint.sh /home/coder/.npm && \
     chmod +x /entrypoint.sh
 
 # Switch to coder user (non-root)
@@ -68,13 +69,17 @@ USER coder
 ENV NPM_CONFIG_PREFIX=/home/coder/.npm-global
 RUN mkdir -p /home/coder/.npm-global
 
-# Update Claude to native installer as the coder user
-RUN claude install
-
-# Set environment variables
+# Set PATH before running claude commands so the native binary is reachable
 ENV PORT=3000 \
     NODE_ENV=production \
     PATH="/home/coder/.npm-global/bin:/home/coder/.local/bin:${PATH}"
+
+# Update Claude to native installer as the coder user
+RUN claude install
+
+# Register the official plugin marketplace so installs work out of the box
+RUN claude plugin marketplace add https://github.com/anthropic/plugins-official.git \
+    || echo "[WARNING] marketplace registration failed — plugins may not install"
 
 # Expose both Zeus backend (3000) and code-server (8080)
 EXPOSE 3000 8080

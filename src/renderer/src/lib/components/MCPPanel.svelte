@@ -453,25 +453,25 @@
     // Build the fully-qualified install name: "id@marketplace" (unless the id
     // already embeds the marketplace, e.g. "superpowers@superpowers-marketplace")
     const fullName = id.includes("@") ? id : `${id}@${marketplace}`;
-    const ok = await pluginStore.install(fullName, "user");
-    if (ok) uiStore.showToast(`Installed: ${id}`, "success");
-    else uiStore.showToast(`Failed to install: ${id}`, "error");
+    const result = await pluginStore.install(fullName, "user");
+    if (result.success) uiStore.showToast(`Installed: ${id}`, "success");
+    else uiStore.showToast(`Failed to install: ${id}: ${result.error ?? 'unknown error'}`, "error");
     pluginActionId = null;
   }
 
   async function installPluginByName() {
     if (!pluginInstallName.trim()) return;
     installingPlugin = true;
-    const ok = await pluginStore.install(
+    const result = await pluginStore.install(
       pluginInstallName.trim(),
       pluginInstallScope,
     );
-    if (ok) {
+    if (result.success) {
       uiStore.showToast(`Installed: ${pluginInstallName.trim()}`, "success");
       pluginInstallName = "";
     } else {
       uiStore.showToast(
-        `Failed to install: ${pluginInstallName.trim()}`,
+        `Failed to install: ${pluginInstallName.trim()}: ${result.error ?? 'unknown error'}`,
         "error",
       );
     }
