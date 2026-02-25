@@ -77,10 +77,6 @@ ENV PORT=3000 \
 # Update Claude to native installer as the coder user
 RUN claude install
 
-# Register the official plugin marketplace so installs work out of the box
-RUN claude plugin marketplace add https://github.com/anthropic/plugins-official.git \
-    || echo "[WARNING] marketplace registration failed — plugins may not install"
-
 # Expose both Zeus backend (3000) and code-server (8080)
 EXPOSE 3000 8080
 

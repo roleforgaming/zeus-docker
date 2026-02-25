@@ -7,8 +7,8 @@ echo "[zeus-entrypoint] Starting unified Zeus + code-server container..."
 mkdir -p /home/coder/workspaces
 
 # Ensure the official plugin marketplace is registered (safety net for volume mounts
-# that may overwrite ~/.claude.json from the build-time registration)
-claude plugin marketplace add https://github.com/anthropic/plugins-official.git 2>/dev/null || true
+# that may overwrite ~/.claude.json)
+claude plugin marketplace add https://github.com/anthropics/claude-plugins-official.git claude-plugins-official 2>/dev/null || true
 
 # Set environment variable to indicate we're in the unified container
 export ZEUS_CONTAINER_MODE=true
