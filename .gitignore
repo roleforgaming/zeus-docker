@@ -43,6 +43,7 @@ yarn-error.log*
 .cline/
 .qwen/
 .windsurf/
+.worktrees/
 
 ###############################################################################
 # Data and Workspaces (Persistent storage)
