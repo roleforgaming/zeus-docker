@@ -1,389 +1,559 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import { mcpStore } from '../stores/mcp.svelte.js'
-  import { pluginStore, OFFICIAL_PLUGINS } from '../stores/plugin.svelte.js'
-  import { terminalStore } from '../stores/terminal.svelte.js'
-  import { workspaceStore } from '../stores/workspace.svelte.js'
-  import { uiStore } from '../stores/ui.svelte.js'
-  import { waitForElement } from '../utils/waitForElement.js'
-  import IconPlus from './icons/IconPlus.svelte'
+  import { onMount } from "svelte";
+  import { mcpStore } from "../stores/mcp.svelte.js";
+  import {
+    pluginStore,
+    OFFICIAL_PLUGINS,
+    type OfficialPlugin,
+  } from "../stores/plugin.svelte.js";
+  import { terminalStore } from "../stores/terminal.svelte.js";
+  import { workspaceStore } from "../stores/workspace.svelte.js";
+  import { uiStore } from "../stores/ui.svelte.js";
+  import { waitForElement } from "../utils/waitForElement.js";
+  import IconPlus from "./icons/IconPlus.svelte";
 
   // ── Tab state ──
-  type PanelTab = 'installed' | 'add' | 'marketplace' | 'plugins'
-  let activeTab = $state<PanelTab>('installed')
+  type PanelTab = "installed" | "add" | "marketplace" | "plugins";
+  let activeTab = $state<PanelTab>("installed");
 
   // ── Installed tab state ──
-  let editingEnv = $state<string | null>(null)
-  let editEnvKey = $state('')
-  let editEnvValue = $state('')
-  let editCommand = $state('')
-  let editArgs = $state('')
-  let editingConnection = $state(false)
+  let editingEnv = $state<string | null>(null);
+  let editEnvKey = $state("");
+  let editEnvValue = $state("");
+  let editCommand = $state("");
+  let editArgs = $state("");
+  let editingConnection = $state(false);
 
   // ── Add tab state ──
-  type Transport = 'stdio' | 'http' | 'sse'
-  let transport = $state<Transport>('stdio')
-  let newName = $state('')
+  type Transport = "stdio" | "http" | "sse";
+  let transport = $state<Transport>("stdio");
+  let newName = $state("");
   // stdio fields
-  let newCommand = $state('npx')
-  let newArgs = $state('')
+  let newCommand = $state("npx");
+  let newArgs = $state("");
   // http/sse fields
-  let newUrl = $state('')
-  let newHeader = $state('')
+  let newUrl = $state("");
+  let newHeader = $state("");
   // shared
-  let newScope = $state<'local' | 'project' | 'user'>('local')
-  let newEnvKey = $state('')
-  let newEnvValue = $state('')
-  let envEntries = $state<Array<{ key: string; value: string }>>([])
-  let isAdding = $state(false)
+  let newScope = $state<"local" | "project" | "user">("local");
+  let newEnvKey = $state("");
+  let newEnvValue = $state("");
+  let envEntries = $state<Array<{ key: string; value: string }>>([]);
+  let isAdding = $state(false);
 
   // ── Marketplace state ──
-  let marketFilter = $state('')
-  let installingId = $state<string | null>(null)
+  let marketFilter = $state("");
+  let installingId = $state<string | null>(null);
 
   // ── Plugins state ──
-  let pluginFilter = $state('')
-  let pluginActionId = $state<string | null>(null)
-  let addMarketplaceSource = $state('')
-  let addingMarketplace = $state(false)
-  let pluginInstallName = $state('')
-  let pluginInstallScope = $state<'user' | 'project'>('user')
-  let installingPlugin = $state(false)
+  let pluginFilter = $state("");
+  let pluginActionId = $state<string | null>(null);
+  let addMarketplaceSource = $state("");
+  let addingMarketplace = $state(false);
+  let pluginInstallName = $state("");
+  let pluginInstallScope = $state<"user" | "project">("user");
+  let installingPlugin = $state(false);
 
   interface MarketplaceServer {
-    id: string
-    name: string
-    desc: string
-    category: string
-    transport: Transport
-    url?: string         // for http/sse
-    command?: string     // for stdio
-    installCmd: string   // full `claude mcp add` command
+    id: string;
+    name: string;
+    desc: string;
+    category: string;
+    transport: Transport;
+    url?: string; // for http/sse
+    command?: string; // for stdio
+    installCmd: string; // full `claude mcp add` command
   }
 
   const MARKETPLACE: MarketplaceServer[] = [
     // ── Productivity ──
-    { id: 'github', name: 'GitHub', desc: 'Issues, PRs, code reviews, and repository management', category: 'Productivity',
-      transport: 'http', url: 'https://api.githubcopilot.com/mcp/',
-      installCmd: 'claude mcp add --transport http github https://api.githubcopilot.com/mcp/' },
-    { id: 'notion', name: 'Notion', desc: 'Read and manage Notion pages and databases', category: 'Productivity',
-      transport: 'http', url: 'https://mcp.notion.com/mcp',
-      installCmd: 'claude mcp add --transport http notion https://mcp.notion.com/mcp' },
-    { id: 'linear', name: 'Linear', desc: 'Issue tracking and project management', category: 'Productivity',
-      transport: 'http', url: 'https://mcp.linear.app/sse',
-      installCmd: 'claude mcp add --transport sse linear https://mcp.linear.app/sse' },
-    { id: 'asana', name: 'Asana', desc: 'Task and project management', category: 'Productivity',
-      transport: 'sse', url: 'https://mcp.asana.com/sse',
-      installCmd: 'claude mcp add --transport sse asana https://mcp.asana.com/sse' },
-    { id: 'slack', name: 'Slack', desc: 'Channel messages and workspace search', category: 'Productivity',
-      transport: 'http', url: 'https://mcp.slack.com/sse',
-      installCmd: 'claude mcp add --transport sse slack https://mcp.slack.com/sse' },
+    {
+      id: "github",
+      name: "GitHub",
+      desc: "Issues, PRs, code reviews, and repository management",
+      category: "Productivity",
+      transport: "http",
+      url: "https://api.githubcopilot.com/mcp/",
+      installCmd:
+        "claude mcp add --transport http github https://api.githubcopilot.com/mcp/",
+    },
+    {
+      id: "notion",
+      name: "Notion",
+      desc: "Read and manage Notion pages and databases",
+      category: "Productivity",
+      transport: "http",
+      url: "https://mcp.notion.com/mcp",
+      installCmd:
+        "claude mcp add --transport http notion https://mcp.notion.com/mcp",
+    },
+    {
+      id: "linear",
+      name: "Linear",
+      desc: "Issue tracking and project management",
+      category: "Productivity",
+      transport: "http",
+      url: "https://mcp.linear.app/sse",
+      installCmd:
+        "claude mcp add --transport sse linear https://mcp.linear.app/sse",
+    },
+    {
+      id: "asana",
+      name: "Asana",
+      desc: "Task and project management",
+      category: "Productivity",
+      transport: "sse",
+      url: "https://mcp.asana.com/sse",
+      installCmd:
+        "claude mcp add --transport sse asana https://mcp.asana.com/sse",
+    },
+    {
+      id: "slack",
+      name: "Slack",
+      desc: "Channel messages and workspace search",
+      category: "Productivity",
+      transport: "http",
+      url: "https://mcp.slack.com/sse",
+      installCmd:
+        "claude mcp add --transport sse slack https://mcp.slack.com/sse",
+    },
     // ── Monitoring & Analytics ──
-    { id: 'sentry', name: 'Sentry', desc: 'Error monitoring, stack traces, and issue tracking', category: 'Monitoring',
-      transport: 'http', url: 'https://mcp.sentry.dev/mcp',
-      installCmd: 'claude mcp add --transport http sentry https://mcp.sentry.dev/mcp' },
-    { id: 'datadog', name: 'Datadog', desc: 'APM, logs, and infrastructure monitoring', category: 'Monitoring',
-      transport: 'http', url: 'https://mcp.datadoghq.com/mcp',
-      installCmd: 'claude mcp add --transport http datadog https://mcp.datadoghq.com/mcp' },
+    {
+      id: "sentry",
+      name: "Sentry",
+      desc: "Error monitoring, stack traces, and issue tracking",
+      category: "Monitoring",
+      transport: "http",
+      url: "https://mcp.sentry.dev/mcp",
+      installCmd:
+        "claude mcp add --transport http sentry https://mcp.sentry.dev/mcp",
+    },
+    {
+      id: "datadog",
+      name: "Datadog",
+      desc: "APM, logs, and infrastructure monitoring",
+      category: "Monitoring",
+      transport: "http",
+      url: "https://mcp.datadoghq.com/mcp",
+      installCmd:
+        "claude mcp add --transport http datadog https://mcp.datadoghq.com/mcp",
+    },
     // ── Cloud & Infrastructure ──
-    { id: 'cloudflare', name: 'Cloudflare', desc: 'Workers, DNS, and edge deployments', category: 'Cloud',
-      transport: 'http', url: 'https://mcp.cloudflare.com/sse',
-      installCmd: 'claude mcp add --transport sse cloudflare https://mcp.cloudflare.com/sse' },
-    { id: 'stripe', name: 'Stripe', desc: 'Payments, subscriptions, and billing', category: 'Cloud',
-      transport: 'http', url: 'https://mcp.stripe.com',
-      installCmd: 'claude mcp add --transport http stripe https://mcp.stripe.com' },
-    { id: 'paypal', name: 'PayPal', desc: 'Payment processing and transactions', category: 'Cloud',
-      transport: 'http', url: 'https://mcp.paypal.com/mcp',
-      installCmd: 'claude mcp add --transport http paypal https://mcp.paypal.com/mcp' },
+    {
+      id: "cloudflare",
+      name: "Cloudflare",
+      desc: "Workers, DNS, and edge deployments",
+      category: "Cloud",
+      transport: "http",
+      url: "https://mcp.cloudflare.com/sse",
+      installCmd:
+        "claude mcp add --transport sse cloudflare https://mcp.cloudflare.com/sse",
+    },
+    {
+      id: "stripe",
+      name: "Stripe",
+      desc: "Payments, subscriptions, and billing",
+      category: "Cloud",
+      transport: "http",
+      url: "https://mcp.stripe.com",
+      installCmd:
+        "claude mcp add --transport http stripe https://mcp.stripe.com",
+    },
+    {
+      id: "paypal",
+      name: "PayPal",
+      desc: "Payment processing and transactions",
+      category: "Cloud",
+      transport: "http",
+      url: "https://mcp.paypal.com/mcp",
+      installCmd:
+        "claude mcp add --transport http paypal https://mcp.paypal.com/mcp",
+    },
     // ── Database ──
-    { id: 'postgres', name: 'PostgreSQL', desc: 'Query and manage PostgreSQL databases', category: 'Database',
-      transport: 'stdio', command: 'npx -y @bytebase/dbhub',
-      installCmd: 'claude mcp add --transport stdio postgres -- npx -y @bytebase/dbhub' },
-    { id: 'supabase', name: 'Supabase', desc: 'Database, auth, and storage', category: 'Database',
-      transport: 'http', url: 'https://mcp.supabase.com',
-      installCmd: 'claude mcp add --transport http supabase https://mcp.supabase.com' },
+    {
+      id: "postgres",
+      name: "PostgreSQL",
+      desc: "Query and manage PostgreSQL databases",
+      category: "Database",
+      transport: "stdio",
+      command: "npx -y @bytebase/dbhub",
+      installCmd:
+        "claude mcp add --transport stdio postgres -- npx -y @bytebase/dbhub",
+    },
+    {
+      id: "supabase",
+      name: "Supabase",
+      desc: "Database, auth, and storage",
+      category: "Database",
+      transport: "http",
+      url: "https://mcp.supabase.com",
+      installCmd:
+        "claude mcp add --transport http supabase https://mcp.supabase.com",
+    },
     // ── Development ──
-    { id: 'puppeteer', name: 'Puppeteer', desc: 'Browser automation and web scraping', category: 'Development',
-      transport: 'stdio', command: 'npx -y @modelcontextprotocol/server-puppeteer',
-      installCmd: 'claude mcp add --transport stdio puppeteer -- npx -y @modelcontextprotocol/server-puppeteer' },
-    { id: 'filesystem', name: 'Filesystem', desc: 'File operations with sandboxed access', category: 'Development',
-      transport: 'stdio', command: 'npx -y @modelcontextprotocol/server-filesystem',
-      installCmd: 'claude mcp add --transport stdio filesystem -- npx -y @modelcontextprotocol/server-filesystem' },
-    { id: 'sequential-thinking', name: 'Sequential Thinking', desc: 'Step-by-step problem solving', category: 'Development',
-      transport: 'stdio', command: 'npx -y @modelcontextprotocol/server-sequential-thinking',
-      installCmd: 'claude mcp add --transport stdio sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking' },
-    { id: 'brave-search', name: 'Brave Search', desc: 'Web search via Brave Search API', category: 'Development',
-      transport: 'stdio', command: 'npx -y @modelcontextprotocol/server-brave-search',
-      installCmd: 'claude mcp add --transport stdio brave-search -- npx -y @modelcontextprotocol/server-brave-search' },
+    {
+      id: "puppeteer",
+      name: "Puppeteer",
+      desc: "Browser automation and web scraping",
+      category: "Development",
+      transport: "stdio",
+      command: "npx -y @modelcontextprotocol/server-puppeteer",
+      installCmd:
+        "claude mcp add --transport stdio puppeteer -- npx -y @modelcontextprotocol/server-puppeteer",
+    },
+    {
+      id: "filesystem",
+      name: "Filesystem",
+      desc: "File operations with sandboxed access",
+      category: "Development",
+      transport: "stdio",
+      command: "npx -y @modelcontextprotocol/server-filesystem",
+      installCmd:
+        "claude mcp add --transport stdio filesystem -- npx -y @modelcontextprotocol/server-filesystem",
+    },
+    {
+      id: "sequential-thinking",
+      name: "Sequential Thinking",
+      desc: "Step-by-step problem solving",
+      category: "Development",
+      transport: "stdio",
+      command: "npx -y @modelcontextprotocol/server-sequential-thinking",
+      installCmd:
+        "claude mcp add --transport stdio sequential-thinking -- npx -y @modelcontextprotocol/server-sequential-thinking",
+    },
+    {
+      id: "brave-search",
+      name: "Brave Search",
+      desc: "Web search via Brave Search API",
+      category: "Development",
+      transport: "stdio",
+      command: "npx -y @modelcontextprotocol/server-brave-search",
+      installCmd:
+        "claude mcp add --transport stdio brave-search -- npx -y @modelcontextprotocol/server-brave-search",
+    },
     // ── Design ──
-    { id: 'figma', name: 'Figma', desc: 'Read Figma designs and components', category: 'Design',
-      transport: 'http', url: 'https://mcp.figma.com/mcp',
-      installCmd: 'claude mcp add --transport http figma https://mcp.figma.com/mcp' },
-  ]
+    {
+      id: "figma",
+      name: "Figma",
+      desc: "Read Figma designs and components",
+      category: "Design",
+      transport: "http",
+      url: "https://mcp.figma.com/mcp",
+      installCmd:
+        "claude mcp add --transport http figma https://mcp.figma.com/mcp",
+    },
+  ];
 
   const filteredMarketplace = $derived.by(() => {
-    if (!marketFilter.trim()) return MARKETPLACE
-    const q = marketFilter.toLowerCase()
+    if (!marketFilter.trim()) return MARKETPLACE;
+    const q = marketFilter.toLowerCase();
     return MARKETPLACE.filter(
-      (s) => s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)
-    )
-  })
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.desc.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q),
+    );
+  });
 
   const marketCategories = $derived.by(() => {
-    const cats = new Map<string, MarketplaceServer[]>()
+    const cats = new Map<string, MarketplaceServer[]>();
     for (const s of filteredMarketplace) {
-      if (!cats.has(s.category)) cats.set(s.category, [])
-      cats.get(s.category)!.push(s)
+      if (!cats.has(s.category)) cats.set(s.category, []);
+      cats.get(s.category)!.push(s);
     }
-    return cats
-  })
+    return cats;
+  });
 
-  const installedNames = $derived(new Set(mcpStore.servers.map((s) => s.name)))
+  const installedNames = $derived(new Set(mcpStore.servers.map((s) => s.name)));
 
   onMount(() => {
-    mcpStore.load()
-    mcpStore.checkHealth()
-    pluginStore.load()
-  })
+    mcpStore.load();
+    mcpStore.checkHealth();
+    pluginStore.load();
+  });
 
   // ── Installed tab helpers ──
   async function removeServer(name: string) {
-    await mcpStore.removeServer(name)
-    uiStore.showToast(`Removed: ${name}`, 'info')
+    await mcpStore.removeServer(name);
+    uiStore.showToast(`Removed: ${name}`, "info");
   }
 
   async function addEnvToServer(serverName: string) {
-    if (!editEnvKey.trim()) return
-    await mcpStore.updateServerEnv(serverName, editEnvKey.trim(), editEnvValue)
-    editEnvKey = ''
-    editEnvValue = ''
-    uiStore.showToast(`Updated env for ${serverName}`, 'info')
+    if (!editEnvKey.trim()) return;
+    await mcpStore.updateServerEnv(serverName, editEnvKey.trim(), editEnvValue);
+    editEnvKey = "";
+    editEnvValue = "";
+    uiStore.showToast(`Updated env for ${serverName}`, "info");
   }
 
   async function removeEnvFromServer(serverName: string, key: string) {
-    await mcpStore.removeServerEnv(serverName, key)
+    await mcpStore.removeServerEnv(serverName, key);
   }
 
   async function handleDisconnect(name: string) {
-    await mcpStore.disconnect(name)
-    uiStore.showToast(`Disconnected: ${name}`, 'info')
+    await mcpStore.disconnect(name);
+    uiStore.showToast(`Disconnected: ${name}`, "info");
   }
 
   async function handleConnect(name: string) {
-    await mcpStore.connect(name)
-    uiStore.showToast(`Connected: ${name}`, 'success')
-    mcpStore.checkHealth()
+    await mcpStore.connect(name);
+    uiStore.showToast(`Connected: ${name}`, "success");
+    mcpStore.checkHealth();
   }
 
-  function openServerSettings(server: typeof mcpStore.servers[0]) {
-    editCommand = server.command
-    editArgs = server.args.join(' ')
-    editingConnection = false
-    editingEnv = editingEnv === server.name ? null : server.name
+  function openServerSettings(server: (typeof mcpStore.servers)[0]) {
+    editCommand = server.command;
+    editArgs = server.args.join(" ");
+    editingConnection = false;
+    editingEnv = editingEnv === server.name ? null : server.name;
   }
 
-  function startEditConnection(server: typeof mcpStore.servers[0]) {
-    editCommand = server.command
-    editArgs = server.args.join(' ')
-    editingConnection = true
+  function startEditConnection(server: (typeof mcpStore.servers)[0]) {
+    editCommand = server.command;
+    editArgs = server.args.join(" ");
+    editingConnection = true;
   }
 
   async function saveConnection(name: string) {
-    const args = editArgs.trim() ? editArgs.trim().split(/\s+/) : []
-    await mcpStore.updateServer(name, editCommand.trim(), args)
-    editingConnection = false
-    uiStore.showToast(`Updated: ${name}`, 'success')
+    const args = editArgs.trim() ? editArgs.trim().split(/\s+/) : [];
+    await mcpStore.updateServer(name, editCommand.trim(), args);
+    editingConnection = false;
+    uiStore.showToast(`Updated: ${name}`, "success");
     // Re-check health after connection change
-    mcpStore.checkHealth()
+    mcpStore.checkHealth();
   }
 
-  function cancelEditConnection(server: typeof mcpStore.servers[0]) {
-    editCommand = server.command
-    editArgs = server.args.join(' ')
-    editingConnection = false
+  function cancelEditConnection(server: (typeof mcpStore.servers)[0]) {
+    editCommand = server.command;
+    editArgs = server.args.join(" ");
+    editingConnection = false;
   }
 
   // ── Add tab helpers ──
   function resetAddForm() {
-    newName = ''
-    newCommand = 'npx'
-    newArgs = ''
-    newUrl = ''
-    newHeader = ''
-    newScope = 'local'
-    envEntries = []
-    newEnvKey = ''
-    newEnvValue = ''
+    newName = "";
+    newCommand = "npx";
+    newArgs = "";
+    newUrl = "";
+    newHeader = "";
+    newScope = "local";
+    envEntries = [];
+    newEnvKey = "";
+    newEnvValue = "";
   }
 
   function addEnvEntry() {
     if (newEnvKey.trim()) {
-      envEntries = [...envEntries, { key: newEnvKey.trim(), value: newEnvValue }]
-      newEnvKey = ''
-      newEnvValue = ''
+      envEntries = [
+        ...envEntries,
+        { key: newEnvKey.trim(), value: newEnvValue },
+      ];
+      newEnvKey = "";
+      newEnvValue = "";
     }
   }
 
   function removeEnvEntry(idx: number) {
-    envEntries = envEntries.filter((_, i) => i !== idx)
+    envEntries = envEntries.filter((_, i) => i !== idx);
   }
 
   async function addServer() {
     if (!newName.trim()) {
-      uiStore.showToast('Server name is required', 'error')
-      return
+      uiStore.showToast("Server name is required", "error");
+      return;
     }
 
-    if (transport === 'stdio') {
+    if (transport === "stdio") {
       if (!newCommand.trim()) {
-        uiStore.showToast('Command is required', 'error')
-        return
+        uiStore.showToast("Command is required", "error");
+        return;
       }
       // Build `claude mcp add` command for stdio
-      let cmd = `claude mcp add --transport stdio --scope ${newScope}`
+      let cmd = `claude mcp add --transport stdio --scope ${newScope}`;
       for (const e of envEntries) {
-        cmd += ` --env ${e.key}=${e.value}`
+        cmd += ` --env ${e.key}=${e.value}`;
       }
-      cmd += ` ${newName.trim()} -- ${newCommand.trim()}`
-      if (newArgs.trim()) cmd += ` ${newArgs.trim()}`
+      cmd += ` ${newName.trim()} -- ${newCommand.trim()}`;
+      if (newArgs.trim()) cmd += ` ${newArgs.trim()}`;
 
-      await runMcpCommand(cmd)
+      await runMcpCommand(cmd);
     } else {
       // http or sse
       if (!newUrl.trim()) {
-        uiStore.showToast('URL is required', 'error')
-        return
+        uiStore.showToast("URL is required", "error");
+        return;
       }
-      let cmd = `claude mcp add --transport ${transport} --scope ${newScope}`
+      let cmd = `claude mcp add --transport ${transport} --scope ${newScope}`;
       if (newHeader.trim()) {
-        cmd += ` --header "${newHeader.trim()}"`
+        cmd += ` --header "${newHeader.trim()}"`;
       }
-      cmd += ` ${newName.trim()} ${newUrl.trim()}`
+      cmd += ` ${newName.trim()} ${newUrl.trim()}`;
 
-      await runMcpCommand(cmd)
+      await runMcpCommand(cmd);
     }
 
-    resetAddForm()
-    activeTab = 'installed'
+    resetAddForm();
+    activeTab = "installed";
   }
 
   // ── Plugin helpers ──
   /** Filter for Discover tab — uses marketFilter */
   const filteredOfficialPlugins = $derived.by(() => {
-    if (!marketFilter.trim()) return OFFICIAL_PLUGINS
-    const q = marketFilter.toLowerCase()
+    if (!marketFilter.trim()) return OFFICIAL_PLUGINS;
+    const q = marketFilter.toLowerCase();
     return OFFICIAL_PLUGINS.filter(
-      (p: typeof OFFICIAL_PLUGINS[0]) => p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
-    )
-  })
+      (p: (typeof OFFICIAL_PLUGINS)[0]) =>
+        p.name.toLowerCase().includes(q) ||
+        p.desc.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q),
+    );
+  });
 
   const pluginCategories = $derived.by(() => {
-    const cats = new Map<string, typeof pluginStore.constructor.OFFICIAL_PLUGINS>()
+    const cats = new Map<string, OfficialPlugin[]>();
     for (const p of filteredOfficialPlugins) {
-      if (!cats.has(p.category)) cats.set(p.category, [])
-      cats.get(p.category)!.push(p)
+      if (!cats.has(p.category)) cats.set(p.category, []);
+      cats.get(p.category)!.push(p);
     }
-    return cats
-  })
+    return cats;
+  });
 
-  async function togglePlugin(name: string, currentlyEnabled: boolean, scope?: string) {
-    pluginActionId = name
+  async function togglePlugin(
+    name: string,
+    currentlyEnabled: boolean,
+    scope?: string,
+  ) {
+    pluginActionId = name;
     if (currentlyEnabled) {
-      const ok = await pluginStore.disable(name, scope)
-      uiStore.showToast(ok ? `Disabled: ${name}` : `Failed to disable: ${name}`, ok ? 'info' : 'error')
+      const ok = await pluginStore.disable(name, scope);
+      uiStore.showToast(
+        ok ? `Disabled: ${name}` : `Failed to disable: ${name}`,
+        ok ? "info" : "error",
+      );
     } else {
-      const ok = await pluginStore.enable(name, scope)
-      uiStore.showToast(ok ? `Enabled: ${name}` : `Failed to enable: ${name}`, ok ? 'success' : 'error')
+      const ok = await pluginStore.enable(name, scope);
+      uiStore.showToast(
+        ok ? `Enabled: ${name}` : `Failed to enable: ${name}`,
+        ok ? "success" : "error",
+      );
     }
-    pluginActionId = null
+    pluginActionId = null;
   }
 
   async function uninstallPlugin(name: string) {
-    pluginActionId = name
-    const ok = await pluginStore.uninstall(name)
-    if (ok) uiStore.showToast(`Uninstalled: ${name}`, 'info')
-    else uiStore.showToast(`Failed to uninstall: ${name}`, 'error')
-    pluginActionId = null
+    pluginActionId = name;
+    const ok = await pluginStore.uninstall(name);
+    if (ok) uiStore.showToast(`Uninstalled: ${name}`, "info");
+    else uiStore.showToast(`Failed to uninstall: ${name}`, "error");
+    pluginActionId = null;
   }
 
-  async function installOfficialPlugin(id: string) {
-    pluginActionId = id
-    const ok = await pluginStore.install(id, 'user')
-    if (ok) uiStore.showToast(`Installed: ${id}`, 'success')
-    else uiStore.showToast(`Failed to install: ${id}`, 'error')
-    pluginActionId = null
+  async function installOfficialPlugin(id: string, marketplace: string) {
+    pluginActionId = id;
+    // Build the fully-qualified install name: "id@marketplace" (unless the id
+    // already embeds the marketplace, e.g. "superpowers@superpowers-marketplace")
+    const fullName = id.includes("@") ? id : `${id}@${marketplace}`;
+    const ok = await pluginStore.install(fullName, "user");
+    if (ok) uiStore.showToast(`Installed: ${id}`, "success");
+    else uiStore.showToast(`Failed to install: ${id}`, "error");
+    pluginActionId = null;
   }
 
   async function installPluginByName() {
-    if (!pluginInstallName.trim()) return
-    installingPlugin = true
-    const ok = await pluginStore.install(pluginInstallName.trim(), pluginInstallScope)
+    if (!pluginInstallName.trim()) return;
+    installingPlugin = true;
+    const ok = await pluginStore.install(
+      pluginInstallName.trim(),
+      pluginInstallScope,
+    );
     if (ok) {
-      uiStore.showToast(`Installed: ${pluginInstallName.trim()}`, 'success')
-      pluginInstallName = ''
+      uiStore.showToast(`Installed: ${pluginInstallName.trim()}`, "success");
+      pluginInstallName = "";
     } else {
-      uiStore.showToast(`Failed to install: ${pluginInstallName.trim()}`, 'error')
+      uiStore.showToast(
+        `Failed to install: ${pluginInstallName.trim()}`,
+        "error",
+      );
     }
-    installingPlugin = false
+    installingPlugin = false;
   }
 
   async function addMarketplaceRepo() {
-    if (!addMarketplaceSource.trim()) return
-    addingMarketplace = true
-    const ok = await pluginStore.addMarketplace(addMarketplaceSource.trim())
+    if (!addMarketplaceSource.trim()) return;
+    addingMarketplace = true;
+    const ok = await pluginStore.addMarketplace(addMarketplaceSource.trim());
     if (ok) {
-      uiStore.showToast(`Added marketplace: ${addMarketplaceSource.trim()}`, 'success')
-      addMarketplaceSource = ''
+      uiStore.showToast(
+        `Added marketplace: ${addMarketplaceSource.trim()}`,
+        "success",
+      );
+      addMarketplaceSource = "";
     } else {
-      uiStore.showToast(`Failed to add marketplace`, 'error')
+      uiStore.showToast(`Failed to add marketplace`, "error");
     }
-    addingMarketplace = false
+    addingMarketplace = false;
   }
 
   // ── Marketplace helpers ──
   async function installFromMarketplace(server: MarketplaceServer) {
-    installingId = server.id
-    await runMcpCommand(server.installCmd)
-    installingId = null
+    installingId = server.id;
+    await runMcpCommand(server.installCmd);
+    installingId = null;
   }
 
   // ── Shared: run a `claude mcp` command in a terminal tab ──
   async function runMcpCommand(cmd: string) {
-    const cwd = workspaceStore.active?.path
-    const id = await terminalStore.create(cwd)
-    uiStore.activeView = 'terminal'
+    const cwd = workspaceStore.active?.path;
+    const id = await terminalStore.create(cwd);
+    uiStore.activeView = "terminal";
 
     // Wait for terminal DOM element to appear, then attach
     try {
-      await waitForElement(`terminal-${id}`)
-      terminalStore.attach(id, `terminal-${id}`)
-    } catch { /* already attached or timed out */ }
+      await waitForElement(`terminal-${id}`);
+      terminalStore.attach(id, `terminal-${id}`);
+    } catch {
+      /* already attached or timed out */
+    }
 
-    terminalStore.sendInput(id, cmd)
-    uiStore.showToast(`Running: ${cmd.split(' ').slice(0, 4).join(' ')}...`, 'info')
+    terminalStore.sendInput(id, cmd);
+    uiStore.showToast(
+      `Running: ${cmd.split(" ").slice(0, 4).join(" ")}...`,
+      "info",
+    );
 
     // Reload MCP servers after a delay to pick up changes
-    setTimeout(() => mcpStore.load(), 5000)
+    setTimeout(() => mcpStore.load(), 5000);
   }
 
   function transportIcon(t: Transport): string {
     switch (t) {
-      case 'http': return '🌐'
-      case 'sse': return '📡'
-      case 'stdio': return '⚙️'
+      case "http":
+        return "🌐";
+      case "sse":
+        return "📡";
+      case "stdio":
+        return "⚙️";
     }
   }
 
   function categoryIcon(cat: string): string {
     switch (cat) {
-      case 'Productivity': return '📋'
-      case 'Monitoring': return '📊'
-      case 'Cloud': return '☁️'
-      case 'Database': return '🗄️'
-      case 'Development': return '🛠️'
-      case 'Design': return '🎨'
-      case 'Writing': return '✍️'
-      default: return '📦'
+      case "Productivity":
+        return "📋";
+      case "Monitoring":
+        return "📊";
+      case "Cloud":
+        return "☁️";
+      case "Database":
+        return "🗄️";
+      case "Development":
+        return "🛠️";
+      case "Design":
+        return "🎨";
+      case "Writing":
+        return "✍️";
+      default:
+        return "📦";
     }
   }
 </script>
@@ -391,53 +561,96 @@
 <div class="mcp-panel">
   <!-- Tab strip -->
   <div class="panel-tabs">
-    <button class="ptab" class:active={activeTab === 'installed'} onclick={() => (activeTab = 'installed')}>
+    <button
+      class="ptab"
+      class:active={activeTab === "installed"}
+      onclick={() => (activeTab = "installed")}
+    >
       MCP
       {#if mcpStore.servers.length > 0}
         <span class="ptab-count">{mcpStore.servers.length}</span>
       {/if}
     </button>
-    <button class="ptab" class:active={activeTab === 'plugins'} onclick={() => (activeTab = 'plugins')}>
+    <button
+      class="ptab"
+      class:active={activeTab === "plugins"}
+      onclick={() => (activeTab = "plugins")}
+    >
       Plugins
       {#if pluginStore.plugins.length > 0}
         <span class="ptab-count">{pluginStore.plugins.length}</span>
       {/if}
     </button>
-    <button class="ptab" class:active={activeTab === 'add'} onclick={() => (activeTab = 'add')}>
+    <button
+      class="ptab"
+      class:active={activeTab === "add"}
+      onclick={() => (activeTab = "add")}
+    >
       Add
     </button>
-    <button class="ptab" class:active={activeTab === 'marketplace'} onclick={() => (activeTab = 'marketplace')}>
+    <button
+      class="ptab"
+      class:active={activeTab === "marketplace"}
+      onclick={() => (activeTab = "marketplace")}
+    >
       Discover
     </button>
   </div>
 
   <!-- ═══════════ Installed ═══════════ -->
-  {#if activeTab === 'installed'}
+  {#if activeTab === "installed"}
     <div class="tab-content">
       {#if mcpStore.loading}
         <div class="loading"><div class="spinner"></div></div>
       {:else if mcpStore.servers.length === 0}
         <div class="empty">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            opacity="0.3"
+          >
+            <path d="M12 2L2 7l10 5 10-5-10-5z" /><path
+              d="M2 17l10 5 10-5"
+            /><path d="M2 12l10 5 10-5" />
           </svg>
           <p>No MCP servers configured.</p>
-          <p class="hint-text">Add servers from the <button class="link-btn" onclick={() => (activeTab = 'marketplace')}>Marketplace</button> or <button class="link-btn" onclick={() => (activeTab = 'add')}>Add Server</button> tab.</p>
+          <p class="hint-text">
+            Add servers from the <button
+              class="link-btn"
+              onclick={() => (activeTab = "marketplace")}>Marketplace</button
+            >
+            or
+            <button class="link-btn" onclick={() => (activeTab = "add")}
+              >Add Server</button
+            > tab.
+          </p>
         </div>
       {:else}
         <div class="server-list">
           {#each mcpStore.servers as server (server.name)}
-            {@const h = server.enabled ? mcpStore.getHealth(server.name) : undefined}
+            {@const h = server.enabled
+              ? mcpStore.getHealth(server.name)
+              : undefined}
             <div class="server-card" class:disabled-card={!server.enabled}>
               <div class="server-header">
                 <div class="server-info">
                   <div class="server-name-row">
                     <span class="server-name">{server.name}</span>
                     {#if !server.enabled}
-                      <span class="health-badge disconnected">● Disconnected</span>
+                      <span class="health-badge disconnected"
+                        >● Disconnected</span
+                      >
                     {:else if h}
-                      <span class="health-badge" class:connected={h.status === 'connected'} class:failed={h.status === 'failed'}>
-                        {h.status === 'connected' ? '● Connected' : '● Failed'}
+                      <span
+                        class="health-badge"
+                        class:connected={h.status === "connected"}
+                        class:failed={h.status === "failed"}
+                      >
+                        {h.status === "connected" ? "● Connected" : "● Failed"}
                       </span>
                     {:else if mcpStore.healthLoading}
                       <span class="health-badge checking">● Checking…</span>
@@ -445,11 +658,16 @@
                       <span class="health-badge unknown">● Unknown</span>
                     {/if}
                     {#if h?.transport}
-                      <span class="transport-badge badge-{h.transport.toLowerCase()}">{h.transport.toLowerCase()}</span>
+                      <span
+                        class="transport-badge badge-{h.transport.toLowerCase()}"
+                        >{h.transport.toLowerCase()}</span
+                      >
                     {/if}
                   </div>
-                  <span class="server-cmd">{server.command} {server.args.join(' ')}</span>
-                  {#if h?.status === 'failed' && h.error}
+                  <span class="server-cmd"
+                    >{server.command} {server.args.join(" ")}</span
+                  >
+                  {#if h?.status === "failed" && h.error}
                     <span class="health-error">{h.error}</span>
                   {/if}
                 </div>
@@ -460,7 +678,9 @@
                       title="Connected — click to disconnect"
                       onclick={() => handleDisconnect(server.name)}
                     >
-                      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                      <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                      </div>
                     </button>
                   {:else}
                     <button
@@ -468,7 +688,9 @@
                       title="Disconnected — click to connect"
                       onclick={() => handleConnect(server.name)}
                     >
-                      <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                      <div class="toggle-track">
+                        <div class="toggle-thumb"></div>
+                      </div>
                     </button>
                   {/if}
                   <button
@@ -476,10 +698,34 @@
                     title="Settings"
                     onclick={() => openServerSettings(server)}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="12" cy="12" r="3" /><path
+                        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                      /></svg
+                    >
                   </button>
-                  <button class="icon-btn-sm danger" title="Remove" onclick={() => removeServer(server.name)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  <button
+                    class="icon-btn-sm danger"
+                    title="Remove"
+                    onclick={() => removeServer(server.name)}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><polyline points="3 6 5 6 21 6" /><path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      /></svg
+                    >
                   </button>
                 </div>
               </div>
@@ -491,24 +737,56 @@
                     <div class="config-label-row">
                       <span class="config-label">Connection</span>
                       {#if !editingConnection}
-                        <button class="edit-link" onclick={() => startEditConnection(server)}>Edit</button>
+                        <button
+                          class="edit-link"
+                          onclick={() => startEditConnection(server)}
+                          >Edit</button
+                        >
                       {/if}
                     </div>
                     {#if editingConnection}
                       <div class="edit-field">
-                        <label class="edit-field-label" for="edit-cmd-{server.name}">Command</label>
-                        <input id="edit-cmd-{server.name}" class="form-input small" bind:value={editCommand} placeholder="npx, node, python, or URL" />
+                        <label
+                          class="edit-field-label"
+                          for="edit-cmd-{server.name}">Command</label
+                        >
+                        <input
+                          id="edit-cmd-{server.name}"
+                          class="form-input small"
+                          bind:value={editCommand}
+                          placeholder="npx, node, python, or URL"
+                        />
                       </div>
                       <div class="edit-field">
-                        <label class="edit-field-label" for="edit-args-{server.name}">Args</label>
-                        <input id="edit-args-{server.name}" class="form-input small" bind:value={editArgs} placeholder="-y @some/mcp-server" />
+                        <label
+                          class="edit-field-label"
+                          for="edit-args-{server.name}">Args</label
+                        >
+                        <input
+                          id="edit-args-{server.name}"
+                          class="form-input small"
+                          bind:value={editArgs}
+                          placeholder="-y @some/mcp-server"
+                        />
                       </div>
                       <div class="edit-actions">
-                        <button class="btn-sm secondary" onclick={() => cancelEditConnection(server)}>Cancel</button>
-                        <button class="btn-sm primary" onclick={() => saveConnection(server.name)}>Save</button>
+                        <button
+                          class="btn-sm secondary"
+                          onclick={() => cancelEditConnection(server)}
+                          >Cancel</button
+                        >
+                        <button
+                          class="btn-sm primary"
+                          onclick={() => saveConnection(server.name)}
+                          >Save</button
+                        >
                       </div>
                     {:else}
-                      <div class="config-value">{server.command}{server.args.length ? ' ' + server.args.join(' ') : ''}</div>
+                      <div class="config-value">
+                        {server.command}{server.args.length
+                          ? " " + server.args.join(" ")
+                          : ""}
+                      </div>
                     {/if}
                   </div>
 
@@ -516,21 +794,42 @@
                   <div class="config-group">
                     <div class="config-label">Environment Variables</div>
                     {#if Object.keys(server.env).length === 0}
-                      <div class="config-empty">No environment variables configured</div>
+                      <div class="config-empty">
+                        No environment variables configured
+                      </div>
                     {:else}
                       {#each Object.entries(server.env) as [key, value] (key)}
                         <div class="env-row">
                           <span class="env-key">{key}</span>
                           <span class="env-eq">=</span>
-                          <span class="env-val">{value ? '••••••' : '(empty)'}</span>
-                          <button class="remove-btn" onclick={() => removeEnvFromServer(server.name, key)}>&times;</button>
+                          <span class="env-val"
+                            >{value ? "••••••" : "(empty)"}</span
+                          >
+                          <button
+                            class="remove-btn"
+                            onclick={() =>
+                              removeEnvFromServer(server.name, key)}
+                            >&times;</button
+                          >
                         </div>
                       {/each}
                     {/if}
                     <div class="env-add-row">
-                      <input class="form-input small" bind:value={editEnvKey} placeholder="KEY" />
-                      <input class="form-input small" bind:value={editEnvValue} placeholder="value" type="password" />
-                      <button class="add-env-btn" onclick={() => addEnvToServer(server.name)}>+</button>
+                      <input
+                        class="form-input small"
+                        bind:value={editEnvKey}
+                        placeholder="KEY"
+                      />
+                      <input
+                        class="form-input small"
+                        bind:value={editEnvValue}
+                        placeholder="value"
+                        type="password"
+                      />
+                      <button
+                        class="add-env-btn"
+                        onclick={() => addEnvToServer(server.name)}>+</button
+                      >
                     </div>
                   </div>
                 </div>
@@ -540,25 +839,54 @@
         </div>
 
         <!-- Health check button -->
-        <button class="refresh-btn" onclick={() => mcpStore.checkHealth()} disabled={mcpStore.healthLoading}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          {mcpStore.healthLoading ? 'Checking…' : 'Check Health'}
+        <button
+          class="refresh-btn"
+          onclick={() => mcpStore.checkHealth()}
+          disabled={mcpStore.healthLoading}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            ><polyline points="23 4 23 10 17 10" /><path
+              d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"
+            /></svg
+          >
+          {mcpStore.healthLoading ? "Checking…" : "Check Health"}
         </button>
       {/if}
     </div>
 
-  <!-- ═══════════ Plugins ═══════════ -->
-  {:else if activeTab === 'plugins'}
+    <!-- ═══════════ Plugins ═══════════ -->
+  {:else if activeTab === "plugins"}
     <div class="tab-content">
       {#if pluginStore.loading}
         <div class="loading"><div class="spinner"></div></div>
       {:else if pluginStore.plugins.length === 0}
         <div class="empty">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            opacity="0.3"
+          >
+            <path d="M12 2L2 7l10 5 10-5-10-5z" /><path
+              d="M2 17l10 5 10-5"
+            /><path d="M2 12l10 5 10-5" />
           </svg>
           <p>No plugins installed.</p>
-          <p class="hint-text">Browse the <button class="link-btn" onclick={() => (activeTab = 'marketplace')}>Discover</button> tab to find plugins.</p>
+          <p class="hint-text">
+            Browse the <button
+              class="link-btn"
+              onclick={() => (activeTab = "marketplace")}>Discover</button
+            > tab to find plugins.
+          </p>
         </div>
       {:else}
         <div class="server-list">
@@ -567,18 +895,23 @@
               <div class="server-header">
                 <div class="server-info">
                   <div class="plugin-name-row">
-                    <span class="server-name">{plugin.name.split('@')[0]}</span>
-                    <span class="plugin-marketplace">@{plugin.name.split('@').slice(1).join('@')}</span>
+                    <span class="server-name">{plugin.name.split("@")[0]}</span>
+                    <span class="plugin-marketplace"
+                      >@{plugin.name.split("@").slice(1).join("@")}</span
+                    >
                   </div>
-                  <span class="server-cmd">v{plugin.version} · {plugin.scope}</span>
+                  <span class="server-cmd"
+                    >v{plugin.version} · {plugin.scope}</span
+                  >
                 </div>
                 <div class="server-actions">
                   <button
                     class="toggle-btn"
                     class:enabled={plugin.enabled}
-                    title={plugin.enabled ? 'Disable' : 'Enable'}
+                    title={plugin.enabled ? "Disable" : "Enable"}
                     disabled={pluginActionId === plugin.name}
-                    onclick={() => togglePlugin(plugin.name, plugin.enabled, plugin.scope)}
+                    onclick={() =>
+                      togglePlugin(plugin.name, plugin.enabled, plugin.scope)}
                   >
                     {#if pluginActionId === plugin.name}
                       <div class="spinner-sm"></div>
@@ -588,8 +921,22 @@
                       </div>
                     {/if}
                   </button>
-                  <button class="icon-btn-sm danger" title="Uninstall" onclick={() => uninstallPlugin(plugin.name)}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  <button
+                    class="icon-btn-sm danger"
+                    title="Uninstall"
+                    onclick={() => uninstallPlugin(plugin.name)}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><polyline points="3 6 5 6 21 6" /><path
+                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                      /></svg
+                    >
                   </button>
                 </div>
               </div>
@@ -611,8 +958,12 @@
             <option value="user">user</option>
             <option value="project">project</option>
           </select>
-          <button class="btn primary" disabled={!pluginInstallName.trim() || installingPlugin} onclick={installPluginByName}>
-            {installingPlugin ? '…' : 'Install'}
+          <button
+            class="btn primary"
+            disabled={!pluginInstallName.trim() || installingPlugin}
+            onclick={installPluginByName}
+          >
+            {installingPlugin ? "…" : "Install"}
           </button>
         </div>
       </div>
@@ -639,20 +990,34 @@
             bind:value={addMarketplaceSource}
             placeholder="GitHub user/repo or URL"
           />
-          <button class="btn primary" disabled={!addMarketplaceSource.trim() || addingMarketplace} onclick={addMarketplaceRepo}>
-            {addingMarketplace ? '…' : 'Add'}
+          <button
+            class="btn primary"
+            disabled={!addMarketplaceSource.trim() || addingMarketplace}
+            onclick={addMarketplaceRepo}
+          >
+            {addingMarketplace ? "…" : "Add"}
           </button>
         </div>
       </div>
 
       <button class="refresh-btn" onclick={() => pluginStore.load()}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          ><polyline points="23 4 23 10 17 10" /><path
+            d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"
+          /></svg
+        >
         Refresh
       </button>
     </div>
 
-  <!-- ═══════════ Add Server ═══════════ -->
-  {:else if activeTab === 'add'}
+    <!-- ═══════════ Add Server ═══════════ -->
+  {:else if activeTab === "add"}
     <div class="tab-content">
       <div class="add-form">
         <!-- svelte-ignore a11y_label_has_associated_control -->
@@ -660,13 +1025,25 @@
         <div class="form-group">
           <label class="form-label">Transport</label>
           <div class="transport-row">
-            <button class="transport-btn" class:active={transport === 'stdio'} onclick={() => (transport = 'stdio')}>
+            <button
+              class="transport-btn"
+              class:active={transport === "stdio"}
+              onclick={() => (transport = "stdio")}
+            >
               <span class="t-icon">⚙️</span> stdio
             </button>
-            <button class="transport-btn" class:active={transport === 'http'} onclick={() => (transport = 'http')}>
+            <button
+              class="transport-btn"
+              class:active={transport === "http"}
+              onclick={() => (transport = "http")}
+            >
               <span class="t-icon">🌐</span> HTTP
             </button>
-            <button class="transport-btn" class:active={transport === 'sse'} onclick={() => (transport = 'sse')}>
+            <button
+              class="transport-btn"
+              class:active={transport === "sse"}
+              onclick={() => (transport = "sse")}
+            >
               <span class="t-icon">📡</span> SSE
             </button>
           </div>
@@ -674,26 +1051,57 @@
 
         <div class="form-group">
           <label class="form-label" for="mcp-new-name">Server Name</label>
-          <input id="mcp-new-name" class="form-input" bind:value={newName} placeholder="e.g. github, sentry, my-server" />
+          <input
+            id="mcp-new-name"
+            class="form-input"
+            bind:value={newName}
+            placeholder="e.g. github, sentry, my-server"
+          />
         </div>
 
-        {#if transport === 'stdio'}
+        {#if transport === "stdio"}
           <div class="form-group">
             <label class="form-label" for="mcp-new-cmd">Command</label>
-            <input id="mcp-new-cmd" class="form-input" bind:value={newCommand} placeholder="e.g. npx, node, python" />
+            <input
+              id="mcp-new-cmd"
+              class="form-input"
+              bind:value={newCommand}
+              placeholder="e.g. npx, node, python"
+            />
           </div>
           <div class="form-group">
-            <label class="form-label" for="mcp-new-args">Arguments <span class="hint">(space-separated)</span></label>
-            <input id="mcp-new-args" class="form-input" bind:value={newArgs} placeholder="e.g. -y @modelcontextprotocol/server-github" />
+            <label class="form-label" for="mcp-new-args"
+              >Arguments <span class="hint">(space-separated)</span></label
+            >
+            <input
+              id="mcp-new-args"
+              class="form-input"
+              bind:value={newArgs}
+              placeholder="e.g. -y @modelcontextprotocol/server-github"
+            />
           </div>
         {:else}
           <div class="form-group">
             <label class="form-label" for="mcp-new-url">URL</label>
-            <input id="mcp-new-url" class="form-input" bind:value={newUrl} placeholder="https://mcp.example.com/mcp" />
+            <input
+              id="mcp-new-url"
+              class="form-input"
+              bind:value={newUrl}
+              placeholder="https://mcp.example.com/mcp"
+            />
           </div>
           <div class="form-group">
-            <label class="form-label" for="mcp-new-header">Header <span class="hint">(optional, e.g. Authorization: Bearer ...)</span></label>
-            <input id="mcp-new-header" class="form-input" bind:value={newHeader} placeholder="Authorization: Bearer your-token" />
+            <label class="form-label" for="mcp-new-header"
+              >Header <span class="hint"
+                >(optional, e.g. Authorization: Bearer ...)</span
+              ></label
+            >
+            <input
+              id="mcp-new-header"
+              class="form-input"
+              bind:value={newHeader}
+              placeholder="Authorization: Bearer your-token"
+            />
           </div>
         {/if}
 
@@ -702,16 +1110,29 @@
         <div class="form-group">
           <label class="form-label">Scope</label>
           <div class="transport-row">
-            <button class="transport-btn" class:active={newScope === 'local'} onclick={() => (newScope = 'local')}>Local</button>
-            <button class="transport-btn" class:active={newScope === 'project'} onclick={() => (newScope = 'project')}>Project</button>
-            <button class="transport-btn" class:active={newScope === 'user'} onclick={() => (newScope = 'user')}>User</button>
+            <button
+              class="transport-btn"
+              class:active={newScope === "local"}
+              onclick={() => (newScope = "local")}>Local</button
+            >
+            <button
+              class="transport-btn"
+              class:active={newScope === "project"}
+              onclick={() => (newScope = "project")}>Project</button
+            >
+            <button
+              class="transport-btn"
+              class:active={newScope === "user"}
+              onclick={() => (newScope = "user")}>User</button
+            >
           </div>
           <span class="scope-hint">
-            {#if newScope === 'local'}Only you, this project{:else if newScope === 'project'}Shared via .mcp.json{:else}You, all projects{/if}
+            {#if newScope === "local"}Only you, this project{:else if newScope === "project"}Shared
+              via .mcp.json{:else}You, all projects{/if}
           </span>
         </div>
 
-        {#if transport === 'stdio'}
+        {#if transport === "stdio"}
           <!-- svelte-ignore a11y_label_has_associated_control -->
           <div class="form-group">
             <label class="form-label">Environment Variables</label>
@@ -719,13 +1140,24 @@
               <div class="env-row">
                 <span class="env-key">{entry.key}</span>
                 <span class="env-eq">=</span>
-                <span class="env-val">{entry.value ? '••••' : '(empty)'}</span>
-                <button class="remove-btn" onclick={() => removeEnvEntry(i)}>&times;</button>
+                <span class="env-val">{entry.value ? "••••" : "(empty)"}</span>
+                <button class="remove-btn" onclick={() => removeEnvEntry(i)}
+                  >&times;</button
+                >
               </div>
             {/each}
             <div class="env-add-row">
-              <input class="form-input small" bind:value={newEnvKey} placeholder="KEY" />
-              <input class="form-input small" bind:value={newEnvValue} placeholder="value" type="password" />
+              <input
+                class="form-input small"
+                bind:value={newEnvKey}
+                placeholder="KEY"
+              />
+              <input
+                class="form-input small"
+                bind:value={newEnvValue}
+                placeholder="value"
+                type="password"
+              />
               <button class="add-env-btn" onclick={addEnvEntry}>+</button>
             </div>
           </div>
@@ -734,22 +1166,39 @@
         <div class="form-actions">
           <button class="btn secondary" onclick={resetAddForm}>Reset</button>
           <button class="btn primary" onclick={addServer} disabled={isAdding}>
-            {isAdding ? 'Adding…' : 'Add Server'}
+            {isAdding ? "Adding…" : "Add Server"}
           </button>
         </div>
       </div>
 
       <!-- Quick tip -->
       <div class="quick-tip">
-        <p>The server will be added by running <code>claude mcp add</code> in a terminal. Some servers require OAuth authentication — follow the browser prompts if needed.</p>
+        <p>
+          The server will be added by running <code>claude mcp add</code> in a terminal.
+          Some servers require OAuth authentication — follow the browser prompts
+          if needed.
+        </p>
       </div>
     </div>
 
-  <!-- ═══════════ Discover (Marketplace) ═══════════ -->
-  {:else if activeTab === 'marketplace'}
+    <!-- ═══════════ Discover (Marketplace) ═══════════ -->
+  {:else if activeTab === "marketplace"}
     <div class="tab-content">
       <div class="market-search">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          ><circle cx="11" cy="11" r="8" /><line
+            x1="21"
+            y1="21"
+            x2="16.65"
+            y2="16.65"
+          /></svg
+        >
         <input
           class="market-search-input"
           bind:value={marketFilter}
@@ -760,7 +1209,17 @@
       <div class="market-list">
         <!-- ── Official Plugins ── -->
         <div class="market-section-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            ><path d="M12 2L2 7l10 5 10-5-10-5z" /><path
+              d="M2 17l10 5 10-5"
+            /><path d="M2 12l10 5 10-5" /></svg
+          >
           Plugins
         </div>
 
@@ -772,7 +1231,9 @@
               <span class="cat-count">{plugins.length}</span>
             </div>
             {#each plugins as plugin (plugin.id)}
-              {@const entry = pluginStore.installedMap.get(plugin.id) ?? pluginStore.installedMap.get(plugin.id.split('@')[0])}
+              {@const entry =
+                pluginStore.installedMap.get(plugin.id) ??
+                pluginStore.installedMap.get(plugin.id.split("@")[0])}
               <div class="market-item" class:installed={!!entry}>
                 <div class="market-item-info">
                   <div class="market-item-top">
@@ -787,19 +1248,22 @@
                     <button
                       class="toggle-btn-sm"
                       class:enabled={entry.enabled}
-                      disabled={pluginActionId === plugin.id || pluginActionId === entry.name}
-                      title={entry.enabled ? 'Disable' : 'Enable'}
-                      onclick={() => togglePlugin(entry.name, entry.enabled, entry.scope)}
+                      disabled={pluginActionId === plugin.id ||
+                        pluginActionId === entry.name}
+                      title={entry.enabled ? "Disable" : "Enable"}
+                      onclick={() =>
+                        togglePlugin(entry.name, entry.enabled, entry.scope)}
                     >
-                      {entry.enabled ? 'On' : 'Off'}
+                      {entry.enabled ? "On" : "Off"}
                     </button>
                   {:else}
                     <button
                       class="install-btn"
                       disabled={pluginActionId === plugin.id}
-                      onclick={() => installOfficialPlugin(plugin.id)}
+                      onclick={() =>
+                        installOfficialPlugin(plugin.id, plugin.marketplace)}
                     >
-                      {pluginActionId === plugin.id ? '…' : 'Install'}
+                      {pluginActionId === plugin.id ? "…" : "Install"}
                     </button>
                   {/if}
                 </div>
@@ -810,7 +1274,17 @@
 
         <!-- ── MCP Servers ── -->
         <div class="market-section-header mcp-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7.8-3.6 5.2-3m5.2-3 5.2-3M4.2 5.4l5.2 3m5.2 3 5.2 3"/></svg>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            ><circle cx="12" cy="12" r="3" /><path
+              d="M12 1v6m0 6v6m-7.8-3.6 5.2-3m5.2-3 5.2-3M4.2 5.4l5.2 3m5.2 3 5.2 3"
+            /></svg
+          >
           MCP Servers
         </div>
 
@@ -822,11 +1296,17 @@
               <span class="cat-count">{servers.length}</span>
             </div>
             {#each servers as server (server.id)}
-              <div class="market-item" class:installed={installedNames.has(server.id)}>
+              <div
+                class="market-item"
+                class:installed={installedNames.has(server.id)}
+              >
                 <div class="market-item-info">
                   <div class="market-item-top">
                     <span class="market-name">{server.name}</span>
-                    <span class="transport-badge badge-{server.transport}">{transportIcon(server.transport)} {server.transport}</span>
+                    <span class="transport-badge badge-{server.transport}"
+                      >{transportIcon(server.transport)}
+                      {server.transport}</span
+                    >
                   </div>
                   <span class="market-desc">{server.desc}</span>
                 </div>
@@ -839,7 +1319,7 @@
                       disabled={installingId === server.id}
                       onclick={() => installFromMarketplace(server)}
                     >
-                      {installingId === server.id ? '…' : 'Install'}
+                      {installingId === server.id ? "…" : "Install"}
                     </button>
                   {/if}
                 </div>
@@ -856,10 +1336,20 @@
       </div>
 
       <div class="market-footer">
-        <a class="market-link" href="https://github.com/modelcontextprotocol/servers" target="_blank" rel="noopener">
+        <a
+          class="market-link"
+          href="https://github.com/modelcontextprotocol/servers"
+          target="_blank"
+          rel="noopener"
+        >
           MCP Servers on GitHub →
         </a>
-        <a class="market-link" href="https://github.com/anthropics/claude-plugins-official" target="_blank" rel="noopener">
+        <a
+          class="market-link"
+          href="https://github.com/anthropics/claude-plugins-official"
+          target="_blank"
+          rel="noopener"
+        >
           Official Plugins →
         </a>
       </div>
@@ -868,380 +1358,785 @@
 </div>
 
 <style>
-  .mcp-panel { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+  .mcp-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
 
   /* ── Panel tabs ── */
   .panel-tabs {
-    display: flex; gap: 0; flex-shrink: 0;
+    display: flex;
+    gap: 0;
+    flex-shrink: 0;
     border-bottom: 1px solid var(--border);
     padding: 0 4px;
   }
   .ptab {
-    display: flex; align-items: center; gap: 5px;
-    padding: 8px 10px; border: none; border-bottom: 2px solid transparent;
-    background: transparent; color: var(--text-dim); font-size: 11px; font-weight: 500;
-    cursor: pointer; font-family: inherit; transition: all 120ms ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 120ms ease;
   }
-  .ptab:hover { color: var(--text-bright); }
-  .ptab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .ptab:hover {
+    color: var(--text-bright);
+  }
+  .ptab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
   .ptab-count {
-    background: var(--border); color: var(--text-primary); font-size: 9px; padding: 1px 5px;
-    border-radius: 8px; font-weight: 600;
+    background: var(--border);
+    color: var(--text-primary);
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 600;
   }
 
   /* ── Tab content ── */
-  .tab-content { flex: 1; overflow-y: auto; padding: 12px; }
+  .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+  }
 
   /* ── Loading / Empty ── */
-  .loading { display: flex; justify-content: center; padding: 32px; }
+  .loading {
+    display: flex;
+    justify-content: center;
+    padding: 32px;
+  }
   .spinner {
-    width: 20px; height: 20px; border: 2px solid var(--border-strong);
-    border-top-color: var(--accent); border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 
-  .empty { text-align: center; padding: 32px 16px; color: var(--text-dim); }
-  .empty p { font-size: 13px; line-height: 1.5; margin: 4px 0; }
-  .hint-text { font-size: 11px; color: var(--text-secondary); }
+  .empty {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-dim);
+  }
+  .empty p {
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 4px 0;
+  }
+  .hint-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
 
   .link-btn {
-    border: none; background: none; color: var(--accent); cursor: pointer;
-    font-family: inherit; font-size: 11px; text-decoration: underline;
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    text-decoration: underline;
     padding: 0;
   }
-  .link-btn:hover { color: var(--accent-hover); }
+  .link-btn:hover {
+    color: var(--accent-hover);
+  }
 
   /* ── Server cards (Installed + Plugins) ── */
-  .server-list { display: flex; flex-direction: column; gap: 8px; }
+  .server-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
   .server-card {
-    background: var(--bg-raised); border-radius: 8px; border: 1px solid var(--border);
-    overflow: hidden; transition: opacity 150ms ease;
+    background: var(--bg-raised);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: opacity 150ms ease;
   }
   .server-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 12px; gap: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    gap: 8px;
   }
-  .server-info { flex: 1; min-width: 0; }
+  .server-info {
+    flex: 1;
+    min-width: 0;
+  }
   .server-name-row {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 1px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 1px;
   }
-  .server-name { font-size: 13px; font-weight: 600; color: var(--text-bright); }
+  .server-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
   .health-badge {
-    font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
-    border: 1px solid transparent; letter-spacing: 0.02em;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    letter-spacing: 0.02em;
   }
   .health-badge.connected {
-    color: var(--green-bright); background: rgba(152, 195, 121, 0.15);
+    color: var(--green-bright);
+    background: rgba(152, 195, 121, 0.15);
     border-color: rgba(152, 195, 121, 0.35);
   }
   .health-badge.failed {
-    color: var(--red); background: rgba(224, 108, 117, 0.12);
+    color: var(--red);
+    background: rgba(224, 108, 117, 0.12);
     border-color: rgba(224, 108, 117, 0.3);
   }
   .health-badge.checking {
-    color: var(--yellow); background: rgba(229, 192, 123, 0.1);
+    color: var(--yellow);
+    background: rgba(229, 192, 123, 0.1);
     border-color: rgba(229, 192, 123, 0.25);
     animation: pulse-opacity 1.2s ease-in-out infinite;
   }
   .health-badge.unknown {
-    color: var(--text-secondary); background: rgba(127, 132, 142, 0.1);
+    color: var(--text-secondary);
+    background: rgba(127, 132, 142, 0.1);
     border-color: rgba(127, 132, 142, 0.2);
   }
   .health-badge.disconnected {
-    color: var(--text-dim); background: rgba(139, 145, 157, 0.1);
+    color: var(--text-dim);
+    background: rgba(139, 145, 157, 0.1);
     border-color: rgba(139, 145, 157, 0.2);
   }
-  @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  @keyframes pulse-opacity {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
   .health-error {
-    display: block; font-size: 10px; color: var(--red); margin-top: 2px;
+    display: block;
+    font-size: 10px;
+    color: var(--red);
+    margin-top: 2px;
     font-family: var(--font-mono);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .server-cmd {
-    display: block; font-size: 11px; color: var(--text-dim); margin-top: 3px;
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 3px;
     font-family: var(--font-mono);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
-  .server-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .server-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
 
   .icon-btn-sm {
-    display: flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; border: none; background: transparent;
-    color: var(--text-dim); border-radius: 4px; cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    border-radius: 4px;
+    cursor: pointer;
   }
-  .icon-btn-sm:hover { background: var(--border); color: var(--text-bright); }
-  .icon-btn-sm.danger:hover { color: var(--red); }
-
+  .icon-btn-sm:hover {
+    background: var(--border);
+    color: var(--text-bright);
+  }
+  .icon-btn-sm.danger:hover {
+    color: var(--red);
+  }
 
   /* Env / Config section */
   .env-section {
-    padding: 10px 12px 12px; border-top: 1px solid var(--border); background: var(--bg-deep);
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-deep);
   }
   .config-group {
     margin-bottom: 10px;
   }
-  .config-group:last-child { margin-bottom: 0; }
+  .config-group:last-child {
+    margin-bottom: 0;
+  }
   .config-label {
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
   }
   .config-value {
-    font-size: 12px; color: var(--text-bright); word-break: break-all;
+    font-size: 12px;
+    color: var(--text-bright);
+    word-break: break-all;
     font-family: var(--font-mono);
-    background: rgba(255, 255, 255, 0.03); padding: 4px 8px;
-    border-radius: 4px; border: 1px solid var(--bg-raised);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--bg-raised);
   }
   .config-empty {
-    font-size: 11px; color: var(--text-muted); font-style: italic;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
     padding: 2px 0;
   }
   .config-label-row {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 4px;
   }
-  .config-label-row .config-label { margin-bottom: 0; }
-  .edit-link {
-    border: none; background: none; color: var(--accent-hover); cursor: pointer;
-    font-family: inherit; font-size: 10px; font-weight: 600;
-    padding: 0; text-decoration: underline; text-underline-offset: 2px;
+  .config-label-row .config-label {
+    margin-bottom: 0;
   }
-  .edit-link:hover { color: var(--accent); }
-  .edit-field { margin-bottom: 6px; }
+  .edit-link {
+    border: none;
+    background: none;
+    color: var(--accent-hover);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .edit-link:hover {
+    color: var(--accent);
+  }
+  .edit-field {
+    margin-bottom: 6px;
+  }
   .edit-field-label {
-    display: block; font-size: 9px; color: var(--text-secondary); margin-bottom: 2px;
+    display: block;
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
     font-weight: 600;
   }
   .edit-actions {
-    display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px;
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    margin-top: 6px;
   }
   .btn-sm {
-    padding: 4px 10px; border-radius: 5px;
-    font-size: 11px; font-weight: 600; cursor: pointer; font-family: inherit;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
     transition: all 120ms ease;
   }
   .btn-sm.secondary {
-    background: transparent; border: 1px solid var(--border-strong); color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
   }
-  .btn-sm.secondary:hover { background: var(--bg-raised); color: var(--text-bright); }
+  .btn-sm.secondary:hover {
+    background: var(--bg-raised);
+    color: var(--text-bright);
+  }
   .btn-sm.primary {
-    background: var(--accent-bg-hover); border: 1px solid var(--accent-border-strong);
+    background: var(--accent-bg-hover);
+    border: 1px solid var(--accent-border-strong);
     color: var(--accent-hover);
   }
-  .btn-sm.primary:hover { background: var(--accent-border); }
+  .btn-sm.primary:hover {
+    background: var(--accent-border);
+  }
   .env-row {
-    display: flex; align-items: center; gap: 6px; padding: 4px 0;
-    font-size: 12px; font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-size: 12px;
+    font-family: var(--font-mono);
   }
-  .env-key { color: var(--blue); font-weight: 500; }
-  .env-eq { color: var(--text-dim); }
-  .env-val { color: var(--text-bright); flex: 1; }
+  .env-key {
+    color: var(--blue);
+    font-weight: 500;
+  }
+  .env-eq {
+    color: var(--text-dim);
+  }
+  .env-val {
+    color: var(--text-bright);
+    flex: 1;
+  }
   .remove-btn {
-    width: 18px; height: 18px; border: none; background: transparent;
-    color: var(--text-dim); cursor: pointer; font-size: 14px; border-radius: 3px;
-    display: flex; align-items: center; justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
-  .remove-btn:hover { background: var(--border); color: var(--red); }
+  .remove-btn:hover {
+    background: var(--border);
+    color: var(--red);
+  }
 
-  .env-add-row { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
-  .env-add-row .form-input { flex: 1; }
-  .add-env-btn {
-    width: 28px; height: 28px; border: 1px solid var(--text-muted); background: transparent;
-    color: var(--text-primary); border-radius: 4px; cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
+  .env-add-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+    align-items: center;
   }
-  .add-env-btn:hover { background: var(--border); color: var(--text-bright); border-color: var(--text-secondary); }
+  .env-add-row .form-input {
+    flex: 1;
+  }
+  .add-env-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--text-muted);
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .add-env-btn:hover {
+    background: var(--border);
+    color: var(--text-bright);
+    border-color: var(--text-secondary);
+  }
 
   /* ── Add form ── */
   .add-form {
-    background: var(--bg-raised); border-radius: 8px; padding: 14px;
+    background: var(--bg-raised);
+    border-radius: 8px;
+    padding: 14px;
     border: 1px solid var(--border);
   }
-  .form-group { margin-bottom: 12px; }
+  .form-group {
+    margin-bottom: 12px;
+  }
   .form-label {
-    display: block; font-size: 11px; font-weight: 600; color: var(--text-primary);
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
     margin-bottom: 5px;
   }
-  .form-label .hint { color: var(--text-secondary); font-weight: 400; }
+  .form-label .hint {
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
   .form-input {
-    width: 100%; padding: 7px 10px; border: 1px solid var(--text-muted);
-    background: var(--bg-deep); color: var(--text-bright); border-radius: 5px;
-    font-size: 13px; font-family: var(--font-mono);
-    outline: none; box-sizing: border-box;
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--text-muted);
+    background: var(--bg-deep);
+    color: var(--text-bright);
+    border-radius: 5px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    outline: none;
+    box-sizing: border-box;
   }
-  .form-input:focus { border-color: var(--accent); }
-  .form-input::placeholder { color: var(--text-muted); }
-  .form-input.small { padding: 5px 8px; font-size: 12px; }
+  .form-input:focus {
+    border-color: var(--accent);
+  }
+  .form-input::placeholder {
+    color: var(--text-muted);
+  }
+  .form-input.small {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
 
-  .transport-row { display: flex; gap: 4px; }
-  .transport-btn {
-    flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;
-    padding: 6px 8px; border: 1px solid var(--border-strong); border-radius: 5px;
-    background: transparent; color: var(--text-dim); font-size: 11px; font-weight: 500;
-    cursor: pointer; font-family: inherit; transition: all 120ms ease;
+  .transport-row {
+    display: flex;
+    gap: 4px;
   }
-  .transport-btn:hover { border-color: var(--text-secondary); color: var(--text-bright); }
+  .transport-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 120ms ease;
+  }
+  .transport-btn:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-bright);
+  }
   .transport-btn.active {
-    border-color: var(--accent); color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent);
     background: var(--accent-glow);
   }
-  .t-icon { font-size: 12px; }
+  .t-icon {
+    font-size: 12px;
+  }
 
   .scope-hint {
-    display: block; font-size: 10px; color: var(--text-secondary); margin-top: 4px;
+    display: block;
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 4px;
     font-style: italic;
   }
 
-  .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-  .btn {
-    padding: 6px 14px; border: 1px solid var(--text-muted); border-radius: 5px;
-    font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit;
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 14px;
   }
-  .btn.secondary { background: transparent; color: var(--text-primary); }
-  .btn.secondary:hover { background: var(--border); color: var(--text-bright); }
+  .btn {
+    padding: 6px 14px;
+    border: 1px solid var(--text-muted);
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn.secondary {
+    background: transparent;
+    color: var(--text-primary);
+  }
+  .btn.secondary:hover {
+    background: var(--border);
+    color: var(--text-bright);
+  }
   .btn.primary {
-    background: var(--accent-bg-hover); border-color: var(--accent-border-strong);
+    background: var(--accent-bg-hover);
+    border-color: var(--accent-border-strong);
     color: var(--accent-hover);
   }
-  .btn.primary:hover { background: var(--accent-border); }
-  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.primary:hover {
+    background: var(--accent-border);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 
   .quick-tip {
-    margin-top: 12px; padding: 10px 12px;
-    border-radius: 6px; background: var(--accent-bg-subtle);
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: var(--accent-bg-subtle);
     border: 1px solid var(--accent-bg);
   }
   .quick-tip p {
-    font-size: 11px; color: var(--text-dim); line-height: 1.5; margin: 0;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    margin: 0;
   }
   .quick-tip code {
     font-family: var(--font-mono);
-    font-size: 11px; color: var(--accent-hover);
-    background: var(--accent-glow); padding: 1px 4px; border-radius: 3px;
+    font-size: 11px;
+    color: var(--accent-hover);
+    background: var(--accent-glow);
+    padding: 1px 4px;
+    border-radius: 3px;
   }
 
   /* ── Marketplace / Discover ── */
   .market-search {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg-raised); margin-bottom: 12px; color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--bg-raised);
+    margin-bottom: 12px;
+    color: var(--text-secondary);
   }
   .market-search-input {
-    flex: 1; border: none; background: transparent; outline: none;
-    color: var(--text-bright); font-size: 12px; font-family: inherit;
+    flex: 1;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--text-bright);
+    font-size: 12px;
+    font-family: inherit;
   }
-  .market-search-input::placeholder { color: var(--text-secondary); }
+  .market-search-input::placeholder {
+    color: var(--text-secondary);
+  }
 
-  .market-list { display: flex; flex-direction: column; gap: 4px; }
+  .market-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
 
-  .market-category { margin-bottom: 8px; }
+  .market-category {
+    margin-bottom: 8px;
+  }
   .market-cat-header {
-    display: flex; align-items: center; gap: 6px;
-    padding: 6px 8px; font-size: 10px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
   }
-  .cat-icon { font-size: 12px; }
-  .cat-name { flex: 1; }
+  .cat-icon {
+    font-size: 12px;
+  }
+  .cat-name {
+    flex: 1;
+  }
   .cat-count {
-    font-size: 9px; color: var(--text-dim); background: var(--border);
-    padding: 1px 5px; border-radius: 8px; font-weight: 600;
+    font-size: 9px;
+    color: var(--text-dim);
+    background: var(--border);
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 600;
   }
 
   .market-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 10px; border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
     border: 1px solid transparent;
     transition: all 100ms ease;
   }
-  .market-item:hover { background: var(--bg-raised); border-color: var(--border); }
-  .market-item.installed { opacity: 0.7; }
-
-  .market-item-info { flex: 1; min-width: 0; }
-  .market-item-top {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 2px;
+  .market-item:hover {
+    background: var(--bg-raised);
+    border-color: var(--border);
   }
-  .market-name { font-size: 13px; font-weight: 600; color: var(--text-bright); flex-shrink: 0; }
+  .market-item.installed {
+    opacity: 0.7;
+  }
+
+  .market-item-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .market-item-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+  }
+  .market-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-bright);
+    flex-shrink: 0;
+  }
   .transport-badge {
-    font-size: 9px; padding: 2px 7px; border-radius: 4px;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 4px;
     font-family: var(--font-mono);
-    font-weight: 700; letter-spacing: 0.02em;
+    font-weight: 700;
+    letter-spacing: 0.02em;
     border: 1px solid transparent;
   }
   .badge-plugin {
-    color: var(--accent-hover); background: var(--accent-bg-hover);
+    color: var(--accent-hover);
+    background: var(--accent-bg-hover);
     border-color: var(--accent-border);
   }
   .badge-http {
-    color: var(--blue-bright); background: rgba(97, 175, 239, 0.12);
+    color: var(--blue-bright);
+    background: rgba(97, 175, 239, 0.12);
     border-color: rgba(97, 175, 239, 0.3);
   }
   .badge-sse {
-    color: var(--yellow); background: rgba(229, 192, 123, 0.12);
+    color: var(--yellow);
+    background: rgba(229, 192, 123, 0.12);
     border-color: rgba(229, 192, 123, 0.3);
   }
   .badge-stdio {
-    color: var(--green); background: rgba(152, 195, 121, 0.12);
+    color: var(--green);
+    background: rgba(152, 195, 121, 0.12);
     border-color: rgba(152, 195, 121, 0.3);
   }
   .market-desc {
-    font-size: 11px; color: var(--text-dim); line-height: 1.3;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     display: block;
   }
 
-  .market-item-action { flex-shrink: 0; }
-  .install-btn {
-    padding: 4px 14px; border: 1px solid var(--accent-border-strong);
-    border-radius: 10px; background: var(--accent-bg-hover);
-    color: var(--accent-hover); font-size: 11px; font-weight: 700;
-    cursor: pointer; font-family: inherit; transition: all 120ms ease;
+  .market-item-action {
+    flex-shrink: 0;
   }
-  .install-btn:hover { background: var(--accent-border); border-color: var(--accent); color: var(--accent-light); }
-  .install-btn:disabled { opacity: 0.5; cursor: default; }
+  .install-btn {
+    padding: 4px 14px;
+    border: 1px solid var(--accent-border-strong);
+    border-radius: 10px;
+    background: var(--accent-bg-hover);
+    color: var(--accent-hover);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 120ms ease;
+  }
+  .install-btn:hover {
+    background: var(--accent-border);
+    border-color: var(--accent);
+    color: var(--accent-light);
+  }
+  .install-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 
   .installed-badge {
-    font-size: 10px; color: var(--green-bright); font-weight: 700;
-    padding: 3px 10px; border-radius: 10px;
+    font-size: 10px;
+    color: var(--green-bright);
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 10px;
     background: rgba(152, 195, 121, 0.15);
     border: 1px solid rgba(152, 195, 121, 0.35);
   }
 
   .market-footer {
-    padding: 12px 8px; text-align: center; border-top: 1px solid var(--border);
+    padding: 12px 8px;
+    text-align: center;
+    border-top: 1px solid var(--border);
     margin-top: 8px;
   }
   .market-link {
-    font-size: 11px; color: var(--accent-hover); text-decoration: none; font-weight: 500;
+    font-size: 11px;
+    color: var(--accent-hover);
+    text-decoration: none;
+    font-weight: 500;
   }
-  .market-link:hover { text-decoration: underline; color: var(--accent); }
+  .market-link:hover {
+    text-decoration: underline;
+    color: var(--accent);
+  }
 
   /* ── Plugin toggle ── */
   .toggle-btn {
-    display: flex; align-items: center; justify-content: center;
-    width: 36px; height: 20px; border: none; background: transparent;
-    cursor: pointer; padding: 0; border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    border-radius: 10px;
   }
   .toggle-track {
-    width: 32px; height: 16px; border-radius: 8px;
-    background: var(--border-strong); position: relative; transition: background 150ms ease;
+    width: 32px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--border-strong);
+    position: relative;
+    transition: background 150ms ease;
   }
-  .toggle-btn.enabled .toggle-track { background: var(--green); }
+  .toggle-btn.enabled .toggle-track {
+    background: var(--green);
+  }
   .toggle-thumb {
-    width: 12px; height: 12px; border-radius: 50%;
-    background: var(--text-bright); position: absolute; top: 2px; left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--text-bright);
+    position: absolute;
+    top: 2px;
+    left: 2px;
     transition: left 150ms ease;
   }
-  .toggle-btn.enabled .toggle-thumb { left: 18px; background: var(--bg-raised); }
+  .toggle-btn.enabled .toggle-thumb {
+    left: 18px;
+    background: var(--bg-raised);
+  }
   .spinner-sm {
-    width: 12px; height: 12px; border: 2px solid var(--text-muted);
-    border-top-color: var(--accent); border-radius: 50%;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--text-muted);
+    border-top-color: var(--accent);
+    border-radius: 50%;
     animation: spin 0.8s linear infinite;
   }
 
   .toggle-btn-sm {
-    padding: 3px 12px; border-radius: 10px;
-    font-size: 10px; font-weight: 700; cursor: pointer;
-    font-family: inherit; transition: all 120ms ease;
+    padding: 3px 12px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 120ms ease;
     letter-spacing: 0.03em;
   }
   .toggle-btn-sm.enabled {
@@ -1254,81 +2149,153 @@
     border: 1px solid rgba(224, 108, 117, 0.3);
     color: var(--red);
   }
-  .toggle-btn-sm:hover.enabled { background: rgba(152, 195, 121, 0.3); }
-  .toggle-btn-sm:hover:not(.enabled) { background: rgba(224, 108, 117, 0.18); }
-  .toggle-btn-sm:disabled { opacity: 0.5; cursor: default; }
+  .toggle-btn-sm:hover.enabled {
+    background: rgba(152, 195, 121, 0.3);
+  }
+  .toggle-btn-sm:hover:not(.enabled) {
+    background: rgba(224, 108, 117, 0.18);
+  }
+  .toggle-btn-sm:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 
-  .disabled-card { opacity: 0.65; }
-  .disabled-card:hover { opacity: 0.9; }
+  .disabled-card {
+    opacity: 0.65;
+  }
+  .disabled-card:hover {
+    opacity: 0.9;
+  }
 
-  .plugin-name-row { display: flex; align-items: baseline; gap: 4px; }
+  .plugin-name-row {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
   .plugin-marketplace {
-    font-size: 10px; color: var(--text-secondary);
+    font-size: 10px;
+    color: var(--text-secondary);
     font-family: var(--font-mono);
   }
 
   /* ── Plugin install section ── */
   .plugin-install-section {
-    margin-top: 14px; padding: 12px;
-    background: var(--bg-raised); border-radius: 8px; border: 1px solid var(--border);
+    margin-top: 14px;
+    padding: 12px;
+    background: var(--bg-raised);
+    border-radius: 8px;
+    border: 1px solid var(--border);
   }
   .section-label {
-    font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
   }
   .plugin-install-row {
-    display: flex; gap: 6px; align-items: center;
+    display: flex;
+    gap: 6px;
+    align-items: center;
   }
-  .plugin-install-row .form-input { flex: 1; }
+  .plugin-install-row .form-input {
+    flex: 1;
+  }
 
   .scope-select {
-    padding: 6px 8px; border: 1px solid var(--text-muted);
-    background: var(--bg-deep); color: var(--text-bright); border-radius: 5px;
-    font-size: 11px; font-family: var(--font-mono);
-    outline: none; cursor: pointer;
+    padding: 6px 8px;
+    border: 1px solid var(--text-muted);
+    background: var(--bg-deep);
+    color: var(--text-bright);
+    border-radius: 5px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    outline: none;
+    cursor: pointer;
   }
-  .scope-select:focus { border-color: var(--accent); }
+  .scope-select:focus {
+    border-color: var(--accent);
+  }
 
   .mp-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 0; font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 12px;
     border-bottom: 1px solid rgba(62, 68, 81, 0.5);
   }
-  .mp-row:last-child { border-bottom: none; }
-  .mp-name { color: var(--text-bright); font-weight: 600; }
+  .mp-row:last-child {
+    border-bottom: none;
+  }
+  .mp-name {
+    color: var(--text-bright);
+    font-weight: 600;
+  }
   .mp-source {
-    font-size: 10px; color: var(--text-dim);
+    font-size: 10px;
+    color: var(--text-dim);
     font-family: var(--font-mono);
   }
 
   .refresh-btn {
-    display: flex; align-items: center; gap: 6px; margin-top: 12px;
-    padding: 7px 12px; border: 1px solid var(--border-strong); border-radius: 5px;
-    background: transparent; color: var(--text-dim); font-size: 11px; font-weight: 500;
-    cursor: pointer; font-family: inherit; transition: all 120ms ease;
-    width: 100%; justify-content: center;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 7px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 120ms ease;
+    width: 100%;
+    justify-content: center;
   }
-  .refresh-btn:hover { border-color: var(--text-secondary); color: var(--text-bright); background: var(--bg-raised); }
+  .refresh-btn:hover {
+    border-color: var(--text-secondary);
+    color: var(--text-bright);
+    background: var(--bg-raised);
+  }
 
   /* ── Market section headers ── */
   .market-section-header {
-    display: flex; align-items: center; gap: 6px;
-    padding: 10px 8px 6px; font-size: 13px; font-weight: 700;
-    color: var(--accent-hover); margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 8px 6px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent-hover);
+    margin-top: 4px;
   }
   .market-section-header.mcp-header {
-    margin-top: 12px; padding-top: 14px;
+    margin-top: 12px;
+    padding-top: 14px;
     border-top: 1px solid var(--border);
     color: var(--blue-bright);
   }
 
   .market-source {
-    display: block; font-size: 9px; color: var(--text-secondary); margin-top: 2px;
+    display: block;
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-top: 2px;
     font-family: var(--font-mono);
   }
 
   .market-footer {
-    padding: 12px 8px; text-align: center; border-top: 1px solid var(--border);
-    margin-top: 8px; display: flex; gap: 16px; justify-content: center;
+    padding: 12px 8px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
   }
 </style>
